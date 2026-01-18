@@ -1,12 +1,5 @@
-import {
-  Sparkles,
-  Home,
-  Clock,
-  LogOut,
-  Zap,
-  Send,
-  TrendingUp
-} from "lucide-react";
+import React from 'react';
+import { Sparkles, Home, Clock, LogOut, Zap, Send, TrendingUp } from 'lucide-react';
 
 const DashboardView = ({
   currentView,
@@ -21,10 +14,11 @@ const DashboardView = ({
   analyzing,
   analyzeSentiment,
   results,
+  setResults,
   getStatistics,
   getSentimentColor
 }) => {
-  if (currentView !== "dashboard" || !user) return null;
+  if (currentView !== 'dashboard' || !user) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900">
@@ -41,11 +35,9 @@ const DashboardView = ({
 
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setCurrentView("dashboard")}
+                onClick={() => setCurrentView('dashboard')}
                 className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                  currentView === "dashboard"
-                    ? "bg-purple-600 text-white"
-                    : "text-gray-300 hover:text-white"
+                  currentView === 'dashboard' ? 'bg-purple-600 text-white' : 'text-gray-300 hover:text-white'
                 }`}
               >
                 <Home className="w-4 h-4" />
@@ -54,11 +46,9 @@ const DashboardView = ({
 
               {!isDemo && (
                 <button
-                  onClick={() => setCurrentView("history")}
+                  onClick={() => setCurrentView('history')}
                   className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                    currentView === "history"
-                      ? "bg-purple-600 text-white"
-                      : "text-gray-300 hover:text-white"
+                    currentView === 'history' ? 'bg-purple-600 text-white' : 'text-gray-300 hover:text-white'
                   }`}
                 >
                   <Clock className="w-4 h-4" />
@@ -83,17 +73,17 @@ const DashboardView = ({
         <div className="max-w-5xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">
-              {isDemo ? "¡Prueba SentimentAPI!" : `Hola, ${user.name}!`}
+              {isDemo ? '¡Prueba SentimentAPI!' : `Hola, ${user.name}!`}
             </h1>
             <p className="text-purple-300">
               {isDemo
-                ? "Estás en modo demo. Regístrate para acceder al historial y más funciones."
-                : "Analiza sentimientos de forma rápida y precisa"}
+                ? 'Estás en modo demo. Regístrate para acceder al historial y más funciones.'
+                : 'Analiza sentimientos de forma rápida y precisa'}
             </p>
 
             {isDemo && (
               <button
-                onClick={() => setCurrentView("register")}
+                onClick={() => setCurrentView('register')}
                 className="mt-4 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all"
               >
                 Registrarse para más funciones
@@ -109,9 +99,7 @@ const DashboardView = ({
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-white">Analizador</h2>
-                  <p className="text-sm text-purple-200">
-                    Análisis simple o múltiple
-                  </p>
+                  <p className="text-sm text-purple-200">Análisis simple o múltiple</p>
                 </div>
               </div>
             </div>
@@ -122,12 +110,13 @@ const DashboardView = ({
                 <button
                   onClick={() => {
                     setIsBatchMode(false);
-                    setText("");
+                    setText('');
+                    setResults(null);
                   }}
                   className={`px-6 py-2.5 rounded-xl font-semibold transition-all ${
                     !isBatchMode
-                      ? "bg-cyan-500 text-white shadow-lg"
-                      : "bg-white/10 text-purple-200 hover:bg-white/20"
+                      ? 'bg-cyan-500 text-white shadow-lg'
+                      : 'bg-white/10 text-purple-200 hover:bg-white/20'
                   }`}
                 >
                   Simple
@@ -135,12 +124,13 @@ const DashboardView = ({
                 <button
                   onClick={() => {
                     setIsBatchMode(true);
-                    setText("");
+                    setText('');
+                    setResults(null);
                   }}
                   className={`px-6 py-2.5 rounded-xl font-semibold transition-all ${
                     isBatchMode
-                      ? "bg-cyan-500 text-white shadow-lg"
-                      : "bg-white/10 text-purple-200 hover:bg-white/20"
+                      ? 'bg-cyan-500 text-white shadow-lg'
+                      : 'bg-white/10 text-purple-200 hover:bg-white/20'
                   }`}
                 >
                   Múltiple
@@ -160,6 +150,12 @@ const DashboardView = ({
                   }
                   className="w-full h-44 bg-white/5 border-2 border-white/20 rounded-2xl p-5 text-white placeholder-purple-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent resize-none transition-all text-lg"
                 />
+                <div className="absolute bottom-5 right-5 px-3 py-1 bg-purple-500/30 rounded-lg text-sm text-purple-200 font-medium backdrop-blur-sm">
+                  {text.length}/{isBatchMode ? 5000 : 500}
+                  {isBatchMode && text.trim() && (
+                    <span className="ml-2 text-cyan-300">• {text.split('\n').filter(t => t.trim()).length} textos</span>
+                  )}
+                </div>
               </div>
 
               {/* Button */}
@@ -169,50 +165,115 @@ const DashboardView = ({
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl text-lg"
               >
                 <Send className="w-6 h-6" />
-                {analyzing ? "Analizando..." : "Analizar"}
+                {analyzing ? 'Analizando...' : 'Analizar'}
               </button>
 
+              {/* Loading */}
               {analyzing && (
                 <div className="mt-10 text-center">
                   <div className="inline-block mb-6">
                     <div className="w-20 h-20 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
                   </div>
-                  <p className="text-2xl font-bold text-white mb-2">
-                    Procesando...
-                  </p>
+                  <p className="text-2xl font-bold text-white mb-2">Procesando...</p>
                   <p className="text-purple-300">Analizando con IA</p>
                 </div>
               )}
 
+              {/* Results */}
               {results && !analyzing && (
                 <div className="mt-10">
-                  <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-8 border-2 border-white/20 shadow-2xl">
-                    <div className="flex items-center gap-2 mb-6">
-                      <TrendingUp className="w-6 h-6 text-cyan-400" />
-                      <h3 className="text-2xl font-bold text-white">
-                        Resultado
-                      </h3>
-                    </div>
+                  {results.isBatch ? (
+                    <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-8 border-2 border-white/20 shadow-2xl">
+                      <div className="flex items-center gap-2 mb-6">
+                        <TrendingUp className="w-6 h-6 text-cyan-400" />
+                        <h3 className="text-2xl font-bold text-white">Análisis Completado</h3>
+                      </div>
 
-                    <div className="p-6 rounded-xl font-bold text-xl border-2 text-center shadow-lg"
-                      style={{
-                        backgroundColor:
-                          getSentimentColor(results.sentiment) + "20",
-                        borderColor: getSentimentColor(results.sentiment),
-                        color: getSentimentColor(results.sentiment)
-                      }}
-                    >
-                      <div className="text-sm opacity-75 mb-2">
-                        SENTIMIENTO
+                      <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border-2 border-indigo-400/40 p-6 mb-6 text-center">
+                        <div className="text-5xl font-black text-white mb-2">{results.totalAnalyzed}</div>
+                        <div className="text-indigo-300 font-semibold">Textos Analizados</div>
                       </div>
-                      <div className="text-3xl uppercase tracking-wider">
-                        {results.sentiment}
+
+                      {/* Statistics Cards */}
+                      <div className="grid grid-cols-3 gap-4 mb-6">
+                        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center">
+                          <div className="text-2xl font-black text-green-400">
+                            {getStatistics()[0].value}
+                          </div>
+                          <div className="text-sm text-green-300">Positivos ({getStatistics()[0].percentage}%)</div>
+                        </div>
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
+                          <div className="text-2xl font-black text-red-400">
+                            {getStatistics()[1].value}
+                          </div>
+                          <div className="text-sm text-red-300">Negativos ({getStatistics()[1].percentage}%)</div>
+                        </div>
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
+                          <div className="text-2xl font-black text-amber-400">
+                            {getStatistics()[2].value}
+                          </div>
+                          <div className="text-sm text-amber-300">Neutrales ({getStatistics()[2].percentage}%)</div>
+                        </div>
+                      </div>
+
+                      {/* Results List */}
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {results.items.map((item, index) => (
+                          <div key={index} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all">
+                            <div className="flex items-start gap-4">
+                              <div className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center font-bold text-lg"
+                                style={{ backgroundColor: getSentimentColor(item.sentiment) + '30', color: getSentimentColor(item.sentiment) }}>
+                                #{index + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="px-3 py-1 rounded-lg text-xs font-bold uppercase"
+                                    style={{ backgroundColor: getSentimentColor(item.sentiment) + '20', color: getSentimentColor(item.sentiment) }}>
+                                    {item.sentiment}
+                                  </span>
+                                  <span className="text-sm text-purple-300">
+                                    Confianza: <span className="font-bold text-white">{(item.score * 100).toFixed(1)}%</span>
+                                  </span>
+                                </div>
+                                <p className="text-white/90 text-sm leading-relaxed">"{item.text}"</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-8 border-2 border-white/20 shadow-2xl">
+                      <div className="flex items-center gap-2 mb-6">
+                        <TrendingUp className="w-6 h-6 text-cyan-400" />
+                        <h3 className="text-2xl font-bold text-white">Resultado</h3>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-6 mb-6">
+                        <div className="p-6 rounded-xl font-bold text-xl border-2 text-center shadow-lg"
+                          style={{ backgroundColor: getSentimentColor(results.sentiment) + '20', borderColor: getSentimentColor(results.sentiment), color: getSentimentColor(results.sentiment) }}>
+                          <div className="text-sm opacity-75 mb-2">SENTIMIENTO</div>
+                          <div className="text-3xl uppercase tracking-wider">{results.sentiment}</div>
+                        </div>
+
+                        <div className="p-6 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border-2 border-indigo-400/40 text-center shadow-lg">
+                          <div className="text-sm text-indigo-300 mb-2">CONFIANZA</div>
+                          <div className="text-4xl font-bold text-white">{(results.score * 100).toFixed(1)}%</div>
+                          <div className="mt-3 bg-white/10 rounded-full h-3 overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-indigo-400 to-purple-500 transition-all duration-1000 rounded-full"
+                              style={{ width: `${results.score * 100}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                        <div className="text-sm text-purple-300 mb-3 font-semibold uppercase">Texto analizado:</div>
+                        <p className="text-white/95 leading-relaxed text-lg">"{results.text}"</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-
             </div>
           </div>
         </div>
