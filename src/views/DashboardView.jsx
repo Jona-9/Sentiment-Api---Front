@@ -1,5 +1,6 @@
+// src/views/DashboardView.jsx
 import React from 'react';
-import { Sparkles, Home, Clock, LogOut, Zap, Send, TrendingUp } from 'lucide-react';
+import { Sparkles, Home, Clock, LogOut, Zap, Send, TrendingUp, AlertCircle } from 'lucide-react';
 
 const DashboardView = ({
   currentView,
@@ -16,7 +17,8 @@ const DashboardView = ({
   results,
   setResults,
   getStatistics,
-  getSentimentColor
+  getSentimentColor,
+  errorMessage
 }) => {
   if (currentView !== 'dashboard' || !user) return null;
 
@@ -157,6 +159,14 @@ const DashboardView = ({
                   )}
                 </div>
               </div>
+
+              {/* Error Message */}
+              {errorMessage && (
+                <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-300 text-sm">{errorMessage}</p>
+                </div>
+              )}
 
               {/* Button */}
               <button

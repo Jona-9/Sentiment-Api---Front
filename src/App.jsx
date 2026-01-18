@@ -1,8 +1,10 @@
+// src/App.jsx
 import React, { useState } from 'react';
 import Landing from './views/Landing';
 import Auth from './views/Auth';
 import DashboardView from './views/DashboardView';
 import HistoryView from './views/HistoryView';
+import { sentimentService } from './services/sentimentService';
 
 const App = () => {
   const [currentView, setCurrentView] = useState('landing');
@@ -14,6 +16,7 @@ const App = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [isBatchMode, setIsBatchMode] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(''); // ← NUEVO
   
   const [historyData] = useState([
     { sentiment: 'positivo', score: 0.85, text: 'Excelente producto', date: '2025-01-15' },
@@ -23,41 +26,27 @@ const App = () => {
     { sentiment: 'positivo', score: 0.91, text: 'Increíble experiencia', date: '2025-01-17' },
   ]);
 
-  const analyzeSentiment = () => {
+  // ✅ FUNCIÓN MODIFICADA - Ahora conectada a la API real
+  const analyzeSentiment = async () => {
     if (!text.trim()) return;
-    setAnalyzing(true);
     
-    setTimeout(() => {
-      const textsToAnalyze = isBatchMode 
-        ? text.split('\n').filter(t => t.trim())
-        : [text];
-      
-      const newResults = textsToAnalyze.map(txt => {
-        const sentiment = Math.random();
-        let label, score;
-        
-        if (sentiment < 0.33) {
-          label = 'negativo';
-          score = Math.random() * 0.33 + 0.67;
-        } else if (sentiment < 0.66) {
-          label = 'neutral';
-          score = Math.random() * 0.2 + 0.4;
-        } else {
-          label = 'positivo';
-          score = Math.random() * 0.34 + 0.66;
-        }
-        
-        return { text: txt, sentiment: label, score: score };
-      });
-      
+    setAnalyzing(true);
+    setErrorMessage('');
+    
+    try {
       if (isBatchMode) {
-        setResults({ isBatch: true, totalAnalyzed: newResults.length, items: newResults });
+        const result = await sentimentService.analyzeBatch(text);
+        setResults(result);
       } else {
-        setResults(newResults[0]);
+        const result = await sentimentService.analyzeSingle(text);
+        setResults(result);
       }
-      
+    } catch (error) {
+      setErrorMessage(error.message || 'Error al analizar el texto');
+      setResults(null);
+    } finally {
       setAnalyzing(false);
-    }, 2000);
+    }
   };
 
   const getSentimentColor = (sentiment) => {
@@ -113,16 +102,24 @@ const App = () => {
     return Object.entries(ranges).map(([name, value]) => ({ name, value }));
   };
 
-  const handleLogin = (e) => {
+  // ✅ FUNCIÓN MODIFICADA - Ahora recibe datos del usuario de la API
+  const handleLogin = (e, userData) => {
     e.preventDefault();
-    setUser({ email: 'usuario@ejemplo.com', name: 'Usuario Demo' });
+    setUser({
+      email: userData.correo,
+      name: userData.nombre || userData.correo.split('@')[0],
+    });
     setIsDemo(false);
     setCurrentView('dashboard');
   };
 
-  const handleRegister = (e) => {
+  // ✅ FUNCIÓN MODIFICADA - Ahora recibe datos del usuario de la API
+  const handleRegister = (e, userData) => {
     e.preventDefault();
-    setUser({ email: 'nuevo@ejemplo.com', name: 'Usuario Nuevo' });
+    setUser({
+      email: userData.correo,
+      name: `${userData.nombre} ${userData.apellido}`,
+    });
     setIsDemo(false);
     setCurrentView('dashboard');
   };
@@ -133,6 +130,7 @@ const App = () => {
     setCurrentView('landing');
     setText('');
     setResults(null);
+    setErrorMessage('');
   };
 
   // Renderizar vistas
@@ -166,6 +164,7 @@ const App = () => {
         setResults={setResults}
         getStatistics={getStatistics}
         getSentimentColor={getSentimentColor}
+        errorMessage={errorMessage} // ← NUEVO: Pasar el mensaje de error
       />
     );
   }

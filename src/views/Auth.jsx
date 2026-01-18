@@ -1,8 +1,47 @@
-import React from 'react';
-import { Sparkles, LogIn, UserPlus } from 'lucide-react';
+// src/views/Auth.jsx
+import React, { useState } from 'react';
+import { Sparkles, LogIn, UserPlus, AlertCircle, Loader2 } from 'lucide-react';
+import { authService } from '../services/authService';
 
 const Auth = ({ type, handleSubmit, setCurrentView }) => {
   const isLogin = type === 'login';
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    nombre: '',
+    apellido: '',
+    correo: '',
+    contraseña: '',
+  });
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError(''); // Limpiar error al escribir
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      let result;
+      
+      if (isLogin) {
+        result = await authService.login(formData.correo, formData.contraseña);
+      } else {
+        result = await authService.register(formData);
+      }
+
+      if (result.success) {
+        handleSubmit(e, result.user); // Pasar datos del usuario al componente padre
+      }
+    } catch (err) {
+      setError(err.message || 'Ocurrió un error. Intenta nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
@@ -23,25 +62,56 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
         </div>
 
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-red-300 text-sm">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleFormSubmit} className="space-y-6">
             {!isLogin && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">Nombre completo</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Juan Pérez"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Nombre</label>
+                  <input
+                    type="text"
+                    name="nombre"
+                    required
+                    value={formData.nombre}
+                    onChange={handleInputChange}
+                    disabled={loading}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                    placeholder="Juan"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Apellido</label>
+                  <input
+                    type="text"
+                    name="apellido"
+                    required
+                    value={formData.apellido}
+                    onChange={handleInputChange}
+                    disabled={loading}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                    placeholder="Pérez"
+                  />
+                </div>
+              </>
             )}
 
             <div>
               <label className="block text-sm font-semibold text-gray-300 mb-2">Email</label>
               <input
                 type="email"
+                name="correo"
                 required
-                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                value={formData.correo}
+                onChange={handleInputChange}
+                disabled={loading}
+                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                 placeholder="tu@email.com"
               />
             </div>
@@ -50,18 +120,32 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
               <label className="block text-sm font-semibold text-gray-300 mb-2">Contraseña</label>
               <input
                 type="password"
+                name="contraseña"
                 required
-                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                value={formData.contraseña}
+                onChange={handleInputChange}
+                disabled={loading}
+                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                 placeholder="••••••••"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all shadow-xl flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLogin ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-              {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {isLogin ? 'Iniciando sesión...' : 'Registrando...'}
+                </>
+              ) : (
+                <>
+                  {isLogin ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                  {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                </>
+              )}
             </button>
           </form>
 
@@ -69,6 +153,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
             <button
               onClick={() => setCurrentView(isLogin ? 'register' : 'login')}
               className="text-purple-400 hover:text-purple-300 font-semibold"
+              disabled={loading}
             >
               {isLogin ? '¿No tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión'}
             </button>
@@ -78,6 +163,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
             <button
               onClick={() => setCurrentView('landing')}
               className="text-gray-400 hover:text-gray-300 text-sm"
+              disabled={loading}
             >
               ← Volver al inicio
             </button>
