@@ -258,25 +258,27 @@ const AnalysisView = ({
                     </div>
                   </div>
 
-                  {/* Charts (available for all users including demo) */}
-                  <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 rounded-3xl p-8 border-2 border-indigo-500/30">
-                    <div className="flex items-center gap-3 mb-8">
-                      <BarChart3 className="w-8 h-8 text-indigo-300" />
-                      <h3 className="text-3xl font-bold text-white">Estadísticas Avanzadas</h3>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-                        <h4 className="text-xl font-bold text-white mb-4">Distribución de Sentimientos</h4>
-                        {renderPieChart()}
+                  {/* Charts (only for registered users) */}
+                  {!isDemo && (
+                    <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 rounded-3xl p-8 border-2 border-indigo-500/30">
+                      <div className="flex items-center gap-3 mb-8">
+                        <BarChart3 className="w-8 h-8 text-indigo-300" />
+                        <h3 className="text-3xl font-bold text-white">Estadísticas Avanzadas</h3>
                       </div>
 
-                      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-                        <h4 className="text-xl font-bold text-white mb-4">Distribución de Puntuaciones</h4>
-                        {renderScoreDistribution()}
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                          <h4 className="text-xl font-bold text-white mb-4">Distribución de Sentimientos</h4>
+                          {renderPieChart()}
+                        </div>
+
+                        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                          <h4 className="text-xl font-bold text-white mb-4">Distribución de Puntuaciones</h4>
+                          {renderScoreDistribution()}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Results List */}
                   <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-8 border-2 border-white/20">
