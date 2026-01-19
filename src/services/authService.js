@@ -45,21 +45,34 @@ export const authService = {
    */
   async login(correo, contraseña) {
     try {
-      const response = await fetch(API_ENDPOINTS.LOGIN(correo, contraseña), {
-        method: 'GET',
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          correo: correo,
+          contraseña: contraseña
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Credenciales incorrectas');
+        if (response.status === 404) {
+          throw new Error('Usuario no encontrado o credenciales incorrectas');
+        }
+        throw new Error('Error al iniciar sesión');
       }
 
-      // El backend retorna 200 OK con body vacío si las credenciales son correctas
-      // Como no retorna datos del usuario, debemos simularlos
+      // El backend retorna UserDtoLogin con { id, nombre, apellido, correo }
+      const userData = await response.json();
+      
       return {
         success: true,
         user: {
-          correo: correo,
-          nombre: correo.split('@')[0], // Extraer nombre del email
+          id: userData.id,
+          correo: userData.correo,
+          nombre: userData.nombre,
+          apellido: userData.apellido,
         }
       };
     } catch (error) {

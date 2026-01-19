@@ -30,10 +30,19 @@ export const sentimentService = {
 
       const data = await response.json();
       
-      // Convertir respuesta del backend al formato del frontend
+      // ✅ CORREGIDO: Normalizar el sentimiento correctamente
+      const normalizeSentiment = (prevision) => {
+        const sentiment = prevision.toLowerCase().trim();
+        // Manejar variaciones comunes
+        if (sentiment === 'positivo' || sentiment === 'positive') return 'positivo';
+        if (sentiment === 'negativo' || sentiment === 'negative') return 'negativo';
+        if (sentiment === 'neutral' || sentiment === 'neutro') return 'neutral';
+        return sentiment; // Fallback
+      };
+      
       return {
         text: text,
-        sentiment: data.prevision.toLowerCase(), // "Positivo" → "positivo"
+        sentiment: normalizeSentiment(data.prevision),
         score: data.probabilidad,
       };
     } catch (error) {
@@ -70,6 +79,15 @@ export const sentimentService = {
 
       const data = await response.json();
       
+      // ✅ CORREGIDO: Normalizar el sentimiento correctamente
+      const normalizeSentiment = (prevision) => {
+        const sentiment = prevision.toLowerCase().trim();
+        if (sentiment === 'positivo' || sentiment === 'positive') return 'positivo';
+        if (sentiment === 'negativo' || sentiment === 'negative') return 'negativo';
+        if (sentiment === 'neutral' || sentiment === 'neutro') return 'neutral';
+        return sentiment;
+      };
+      
       // Convertir respuesta del backend al formato del frontend
       const textsArray = text.split('\n').filter(t => t.trim());
       
@@ -78,7 +96,7 @@ export const sentimentService = {
         totalAnalyzed: data.total,
         items: data.results.map((result, index) => ({
           text: textsArray[index] || '',
-          sentiment: result.prevision.toLowerCase(),
+          sentiment: normalizeSentiment(result.prevision),
           score: result.probabilidad,
         })),
       };

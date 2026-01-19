@@ -16,7 +16,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError(''); // Limpiar error al escribir
+    setError('');
   };
 
   const handleFormSubmit = async (e) => {
@@ -34,7 +34,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
       }
 
       if (result.success) {
-        handleSubmit(e, result.user); // Pasar datos del usuario al componente padre
+        handleSubmit(e, result.user);
       }
     } catch (err) {
       setError(err.message || 'Ocurrió un error. Intenta nuevamente.');

@@ -16,7 +16,7 @@ const App = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [isBatchMode, setIsBatchMode] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(''); // ← NUEVO
+  const [errorMessage, setErrorMessage] = useState('');
   
   const [historyData] = useState([
     { sentiment: 'positivo', score: 0.85, text: 'Excelente producto', date: '2025-01-15' },
@@ -26,7 +26,6 @@ const App = () => {
     { sentiment: 'positivo', score: 0.91, text: 'Increíble experiencia', date: '2025-01-17' },
   ]);
 
-  // ✅ FUNCIÓN MODIFICADA - Ahora conectada a la API real
   const analyzeSentiment = async () => {
     if (!text.trim()) return;
     
@@ -36,9 +35,11 @@ const App = () => {
     try {
       if (isBatchMode) {
         const result = await sentimentService.analyzeBatch(text);
+        console.log('✅ Resultado batch:', result); // ← Para debugging
         setResults(result);
       } else {
         const result = await sentimentService.analyzeSingle(text);
+        console.log('✅ Resultado simple:', result); // ← Para debugging
         setResults(result);
       }
     } catch (error) {
@@ -50,11 +51,14 @@ const App = () => {
   };
 
   const getSentimentColor = (sentiment) => {
-    switch(sentiment) {
+    const normalizedSentiment = sentiment?.toLowerCase().trim();
+    switch(normalizedSentiment) {
       case 'positivo': return '#10b981';
       case 'negativo': return '#ef4444';
       case 'neutral': return '#f59e0b';
-      default: return '#8b5cf6';
+      default: 
+        console.warn('⚠️ Sentimiento desconocido:', sentiment);
+        return '#8b5cf6';
     }
   };
 
@@ -63,30 +67,82 @@ const App = () => {
     const items = results.items || [];
     if (items.length === 0) return null;
     
+    // ✅ Contar con normalización
     const counts = {
-      positivo: items.filter(h => h.sentiment === 'positivo').length,
-      negativo: items.filter(h => h.sentiment === 'negativo').length,
-      neutral: items.filter(h => h.sentiment === 'neutral').length
+      positivo: 0,
+      negativo: 0,
+      neutral: 0
     };
     
+    items.forEach(item => {
+      const sentiment = item.sentiment?.toLowerCase().trim();
+      if (sentiment === 'positivo') counts.positivo++;
+      else if (sentiment === 'negativo') counts.negativo++;
+      else if (sentiment === 'neutral') counts.neutral++;
+      else console.warn('⚠️ Sentimiento no reconocido:', item.sentiment);
+    });
+    
+    const total = items.length;
+    
+    console.log('📊 Estadísticas:', { counts, total, items }); // ← Para debugging
+    
     return [
-      { name: 'Positivo', value: counts.positivo, color: '#10b981', percentage: (counts.positivo / items.length * 100).toFixed(1) },
-      { name: 'Negativo', value: counts.negativo, color: '#ef4444', percentage: (counts.negativo / items.length * 100).toFixed(1) },
-      { name: 'Neutral', value: counts.neutral, color: '#f59e0b', percentage: (counts.neutral / items.length * 100).toFixed(1) }
+      { 
+        name: 'Positivo', 
+        value: counts.positivo, 
+        color: '#10b981', 
+        percentage: ((counts.positivo / total) * 100).toFixed(1)
+      },
+      { 
+        name: 'Negativo', 
+        value: counts.negativo, 
+        color: '#ef4444', 
+        percentage: ((counts.negativo / total) * 100).toFixed(1)
+      },
+      { 
+        name: 'Neutral', 
+        value: counts.neutral, 
+        color: '#f59e0b', 
+        percentage: ((counts.neutral / total) * 100).toFixed(1)
+      }
     ];
   };
 
   const getHistoryStatistics = () => {
     const counts = {
-      positivo: historyData.filter(h => h.sentiment === 'positivo').length,
-      negativo: historyData.filter(h => h.sentiment === 'negativo').length,
-      neutral: historyData.filter(h => h.sentiment === 'neutral').length
+      positivo: 0,
+      negativo: 0,
+      neutral: 0
     };
     
+    historyData.forEach(item => {
+      const sentiment = item.sentiment?.toLowerCase().trim();
+      if (sentiment === 'positivo') counts.positivo++;
+      else if (sentiment === 'negativo') counts.negativo++;
+      else if (sentiment === 'neutral') counts.neutral++;
+    });
+    
+    const total = historyData.length;
+    
     return [
-      { name: 'Positivo', value: counts.positivo, color: '#10b981', percentage: (counts.positivo / historyData.length * 100).toFixed(1) },
-      { name: 'Negativo', value: counts.negativo, color: '#ef4444', percentage: (counts.negativo / historyData.length * 100).toFixed(1) },
-      { name: 'Neutral', value: counts.neutral, color: '#f59e0b', percentage: (counts.neutral / historyData.length * 100).toFixed(1) }
+      { 
+        name: 'Positivo', 
+        value: counts.positivo, 
+        color: '#10b981', 
+        percentage: ((counts.positivo / total) * 100).toFixed(1)
+      },
+      { 
+        name: 'Negativo', 
+        value: counts.negativo, 
+        color: '#ef4444', 
+        percentage: ((counts.negativo / total) * 100).toFixed(1)
+      },
+      { 
+        name: 'Neutral', 
+        value: counts.neutral, 
+        color: '#f59e0b', 
+        percentage: ((counts.neutral / total) * 100).toFixed(1)
+      }
     ];
   };
 
@@ -102,18 +158,17 @@ const App = () => {
     return Object.entries(ranges).map(([name, value]) => ({ name, value }));
   };
 
-  // ✅ FUNCIÓN MODIFICADA - Ahora recibe datos del usuario de la API
   const handleLogin = (e, userData) => {
     e.preventDefault();
     setUser({
+      id: userData.id,
       email: userData.correo,
-      name: userData.nombre || userData.correo.split('@')[0],
+      name: `${userData.nombre} ${userData.apellido}`,
     });
     setIsDemo(false);
     setCurrentView('dashboard');
   };
 
-  // ✅ FUNCIÓN MODIFICADA - Ahora recibe datos del usuario de la API
   const handleRegister = (e, userData) => {
     e.preventDefault();
     setUser({
@@ -133,7 +188,6 @@ const App = () => {
     setErrorMessage('');
   };
 
-  // Renderizar vistas
   if (currentView === 'landing') {
     return <Landing setCurrentView={setCurrentView} setUser={setUser} setIsDemo={setIsDemo} showMobileMenu={showMobileMenu} setShowMobileMenu={setShowMobileMenu} />;
   }
@@ -164,7 +218,7 @@ const App = () => {
         setResults={setResults}
         getStatistics={getStatistics}
         getSentimentColor={getSentimentColor}
-        errorMessage={errorMessage} // ← NUEVO: Pasar el mensaje de error
+        errorMessage={errorMessage}
       />
     );
   }
