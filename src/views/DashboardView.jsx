@@ -1,6 +1,7 @@
 // src/views/DashboardView.jsx
-import React from 'react';
-import { Sparkles, Home, Clock, LogOut, Zap, Send, TrendingUp, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, Home, Clock, LogOut, Zap, Send, TrendingUp, AlertCircle, History, BarChart3 } from 'lucide-react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const DashboardView = ({
   currentView,
@@ -20,7 +21,81 @@ const DashboardView = ({
   getSentimentColor,
   errorMessage
 }) => {
+  const [showHistoryPrompt, setShowHistoryPrompt] = useState(false);
+
+  // 🔹 Simulación de datos históricos (reemplazar con API real cuando esté lista)
+  const historicalSessionsCount = 12; // Total de sesiones guardadas en BD
+
   if (currentView !== 'dashboard' || !user) return null;
+
+  // 🎨 Renderizado del gráfico de pastel
+  const renderPieChart = () => {
+    const stats = getStatistics();
+    if (!stats) return null;
+
+    const data = stats.map(stat => ({
+      name: stat.name,
+      value: stat.value,
+      color: stat.color
+    }));
+
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={100}
+            paddingAngle={5}
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  // 🎨 Renderizado del gráfico de barras (distribución de puntuaciones)
+  const renderScoreDistribution = () => {
+    if (!results?.isBatch || !results.items) return null;
+
+    const ranges = {
+      '0.0-0.2': 0,
+      '0.2-0.4': 0,
+      '0.4-0.6': 0,
+      '0.6-0.8': 0,
+      '0.8-1.0': 0
+    };
+
+    results.items.forEach(item => {
+      const score = item.score;
+      if (score < 0.2) ranges['0.0-0.2']++;
+      else if (score < 0.4) ranges['0.2-0.4']++;
+      else if (score < 0.6) ranges['0.4-0.6']++;
+      else if (score < 0.8) ranges['0.6-0.8']++;
+      else ranges['0.8-1.0']++;
+    });
+
+    const data = Object.entries(ranges).map(([name, value]) => ({ name, value }));
+
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={data}>
+          <XAxis dataKey="name" stroke="#a78bfa" />
+          <YAxis stroke="#a78bfa" />
+          <Tooltip contentStyle={{ backgroundColor: '#1e1b4b', border: '1px solid #6366f1' }} />
+          <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900">
@@ -49,12 +124,17 @@ const DashboardView = ({
               {!isDemo && (
                 <button
                   onClick={() => setCurrentView('history')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 relative ${
                     currentView === 'history' ? 'bg-purple-600 text-white' : 'text-gray-300 hover:text-white'
                   }`}
                 >
                   <Clock className="w-4 h-4" />
                   <span className="hidden sm:inline">Historial</span>
+                  {historicalSessionsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {historicalSessionsCount}
+                    </span>
+                  )}
                 </button>
               )}
 
@@ -72,26 +152,43 @@ const DashboardView = ({
 
       {/* Content */}
       <div className="p-4 sm:p-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">
-              {isDemo ? '¡Prueba SentimentAPI!' : `Hola, ${user.name}!`}
-            </h1>
-            <p className="text-purple-300">
-              {isDemo
-                ? 'Estás en modo demo. Regístrate para acceder al historial y más funciones.'
-                : 'Analiza sentimientos de forma rápida y precisa'}
-            </p>
+        <div className="max-w-7xl mx-auto">
+          {/* Header con botón de historial */}
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                {isDemo ? '¡Prueba SentimentAPI!' : `Hola, ${user.name}!`}
+              </h1>
+              <p className="text-purple-300">
+                {isDemo
+                  ? 'Estás en modo demo. Regístrate para acceder al historial y más funciones.'
+                  : 'Analiza sentimientos de forma rápida y precisa'}
+              </p>
+            </div>
 
-            {isDemo && (
+            {!isDemo && historicalSessionsCount > 0 && (
               <button
-                onClick={() => setCurrentView('register')}
-                className="mt-4 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all"
+                onClick={() => setCurrentView('history')}
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-xl flex items-center gap-3 group"
               >
-                Registrarse para más funciones
+                <History className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                <div className="text-left">
+                  <div className="text-sm opacity-90">Ver Historial</div>
+                  <div className="text-xs opacity-75">{historicalSessionsCount} sesiones guardadas</div>
+                </div>
+                <BarChart3 className="w-5 h-5" />
               </button>
             )}
           </div>
+
+          {isDemo && (
+            <button
+              onClick={() => setCurrentView('register')}
+              className="mb-6 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all"
+            >
+              Registrarse para más funciones
+            </button>
+          )}
 
           <div className="bg-white/5 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden">
             <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 px-8 py-6 border-b border-white/10">
@@ -193,63 +290,110 @@ const DashboardView = ({
               {results && !analyzing && (
                 <div className="mt-10">
                   {results.isBatch ? (
-                    <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-8 border-2 border-white/20 shadow-2xl">
-                      <div className="flex items-center gap-2 mb-6">
-                        <TrendingUp className="w-6 h-6 text-cyan-400" />
-                        <h3 className="text-2xl font-bold text-white">Análisis Completado</h3>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border-2 border-indigo-400/40 p-6 mb-6 text-center">
-                        <div className="text-5xl font-black text-white mb-2">{results.totalAnalyzed}</div>
-                        <div className="text-indigo-300 font-semibold">Textos Analizados</div>
-                      </div>
-
-                      {/* Statistics Cards */}
-                      <div className="grid grid-cols-3 gap-4 mb-6">
-                        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center">
-                          <div className="text-2xl font-black text-green-400">
-                            {getStatistics()[0].value}
-                          </div>
-                          <div className="text-sm text-green-300">Positivos ({getStatistics()[0].percentage}%)</div>
+                    <div className="space-y-6">
+                      {/* Panel de Estadísticas */}
+                      <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 rounded-2xl p-8 border-2 border-indigo-500/30">
+                        <div className="flex items-center gap-3 mb-6">
+                          <BarChart3 className="w-7 h-7 text-indigo-300" />
+                          <h3 className="text-3xl font-bold text-white">Panel de Estadísticas</h3>
                         </div>
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
-                          <div className="text-2xl font-black text-red-400">
-                            {getStatistics()[1].value}
+                        <p className="text-indigo-200 mb-8">Análisis detallado de todos tus resultados</p>
+
+                        {/* Tarjetas de Resumen */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="p-2 bg-indigo-500/20 rounded-lg">
+                                <BarChart3 className="w-5 h-5 text-indigo-400" />
+                              </div>
+                              <span className="text-sm text-gray-400 uppercase">Total Análisis</span>
+                            </div>
+                            <div className="text-4xl font-black text-indigo-400">{results.totalAnalyzed}</div>
                           </div>
-                          <div className="text-sm text-red-300">Negativos ({getStatistics()[1].percentage}%)</div>
+
+                          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-green-500/30">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="p-2 bg-green-500/20 rounded-lg">
+                                <TrendingUp className="w-5 h-5 text-green-400" />
+                              </div>
+                              <span className="text-sm text-gray-400 uppercase">Positivos</span>
+                            </div>
+                            <div className="text-4xl font-black text-green-400">{getStatistics()[0].value}</div>
+                            <div className="text-xs text-green-300 mt-1">{getStatistics()[0].percentage}%</div>
+                          </div>
+
+                          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-red-500/30">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="p-2 bg-red-500/20 rounded-lg">
+                                <AlertCircle className="w-5 h-5 text-red-400" />
+                              </div>
+                              <span className="text-sm text-gray-400 uppercase">Negativos</span>
+                            </div>
+                            <div className="text-4xl font-black text-red-400">{getStatistics()[1].value}</div>
+                            <div className="text-xs text-red-300 mt-1">{getStatistics()[1].percentage}%</div>
+                          </div>
+
+                          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-amber-500/30">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="p-2 bg-amber-500/20 rounded-lg">
+                                <Zap className="w-5 h-5 text-amber-400" />
+                              </div>
+                              <span className="text-sm text-gray-400 uppercase">Neutrales</span>
+                            </div>
+                            <div className="text-4xl font-black text-amber-400">{getStatistics()[2].value}</div>
+                            <div className="text-xs text-amber-300 mt-1">{getStatistics()[2].percentage}%</div>
+                          </div>
                         </div>
-                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
-                          <div className="text-2xl font-black text-amber-400">
-                            {getStatistics()[2].value}
+
+                        {/* Gráficos */}
+                        <div className="grid md:grid-cols-2 gap-6">
+                          {/* Gráfico de Pastel */}
+                          <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                            <h4 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                              <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                              Distribución de Sentimientos
+                            </h4>
+                            {renderPieChart()}
                           </div>
-                          <div className="text-sm text-amber-300">Neutrales ({getStatistics()[2].percentage}%)</div>
+
+                          {/* Gráfico de Barras */}
+                          <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                            <h4 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                              <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                              Distribución de Puntuaciones
+                            </h4>
+                            {renderScoreDistribution()}
+                          </div>
                         </div>
                       </div>
 
                       {/* Results List */}
-                      <div className="space-y-3 max-h-96 overflow-y-auto">
-                        {results.items.map((item, index) => (
-                          <div key={index} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all">
-                            <div className="flex items-start gap-4">
-                              <div className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center font-bold text-lg"
-                                style={{ backgroundColor: getSentimentColor(item.sentiment) + '30', color: getSentimentColor(item.sentiment) }}>
-                                #{index + 1}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <span className="px-3 py-1 rounded-lg text-xs font-bold uppercase"
-                                    style={{ backgroundColor: getSentimentColor(item.sentiment) + '20', color: getSentimentColor(item.sentiment) }}>
-                                    {item.sentiment}
-                                  </span>
-                                  <span className="text-sm text-purple-300">
-                                    Confianza: <span className="font-bold text-white">{(item.score * 100).toFixed(1)}%</span>
-                                  </span>
+                      <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-8 border-2 border-white/20">
+                        <h3 className="text-2xl font-bold text-white mb-6">Resultados Detallados</h3>
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                          {results.items.map((item, index) => (
+                            <div key={index} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all">
+                              <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center font-bold text-lg"
+                                  style={{ backgroundColor: getSentimentColor(item.sentiment) + '30', color: getSentimentColor(item.sentiment) }}>
+                                  #{index + 1}
                                 </div>
-                                <p className="text-white/90 text-sm leading-relaxed">"{item.text}"</p>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <span className="px-3 py-1 rounded-lg text-xs font-bold uppercase"
+                                      style={{ backgroundColor: getSentimentColor(item.sentiment) + '20', color: getSentimentColor(item.sentiment) }}>
+                                      {item.sentiment}
+                                    </span>
+                                    <span className="text-sm text-purple-300">
+                                      Confianza: <span className="font-bold text-white">{(item.score * 100).toFixed(1)}%</span>
+                                    </span>
+                                  </div>
+                                  <p className="text-white/90 text-sm leading-relaxed">"{item.text}"</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ) : (
