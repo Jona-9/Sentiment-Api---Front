@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Landing from './views/Landing';
 import Auth from './views/Auth';
 import DashboardView from './views/DashboardView';
+import AnalysisView from './views/AnalysisView';
 import HistoryView from './views/HistoryView';
 import { sentimentService } from './services/sentimentService';
 
@@ -15,7 +16,6 @@ const App = () => {
   const [text, setText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
-  const [isBatchMode, setIsBatchMode] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
   const [historyData] = useState([
@@ -32,14 +32,17 @@ const App = () => {
     setAnalyzing(true);
     setErrorMessage('');
     
+    // Determinar si es batch mode basado en la vista actual
+    const isBatchMode = currentView === 'analysis-batch';
+    
     try {
       if (isBatchMode) {
         const result = await sentimentService.analyzeBatch(text);
-        console.log('✅ Resultado batch:', result); // ← Para debugging
+        console.log('✅ Resultado batch:', result);
         setResults(result);
       } else {
         const result = await sentimentService.analyzeSingle(text);
-        console.log('✅ Resultado simple:', result); // ← Para debugging
+        console.log('✅ Resultado simple:', result);
         setResults(result);
       }
     } catch (error) {
@@ -63,11 +66,10 @@ const App = () => {
   };
 
   const getStatistics = () => {
-    if (!isBatchMode || !results?.isBatch) return null;
+    if (!results?.isBatch) return null;
     const items = results.items || [];
     if (items.length === 0) return null;
     
-    // ✅ Contar con normalización
     const counts = {
       positivo: 0,
       negativo: 0,
@@ -84,7 +86,7 @@ const App = () => {
     
     const total = items.length;
     
-    console.log('📊 Estadísticas:', { counts, total, items }); // ← Para debugging
+    console.log('📊 Estadísticas:', { counts, total, items });
     
     return [
       { 
@@ -188,18 +190,42 @@ const App = () => {
     setErrorMessage('');
   };
 
+  // Landing Page
   if (currentView === 'landing') {
-    return <Landing setCurrentView={setCurrentView} setUser={setUser} setIsDemo={setIsDemo} showMobileMenu={showMobileMenu} setShowMobileMenu={setShowMobileMenu} />;
+    return (
+      <Landing 
+        setCurrentView={setCurrentView} 
+        setUser={setUser} 
+        setIsDemo={setIsDemo} 
+        showMobileMenu={showMobileMenu} 
+        setShowMobileMenu={setShowMobileMenu} 
+      />
+    );
   }
 
+  // Login Page
   if (currentView === 'login') {
-    return <Auth type="login" handleSubmit={handleLogin} setCurrentView={setCurrentView} />;
+    return (
+      <Auth 
+        type="login" 
+        handleSubmit={handleLogin} 
+        setCurrentView={setCurrentView} 
+      />
+    );
   }
 
+  // Register Page
   if (currentView === 'register') {
-    return <Auth type="register" handleSubmit={handleRegister} setCurrentView={setCurrentView} />;
+    return (
+      <Auth 
+        type="register" 
+        handleSubmit={handleRegister} 
+        setCurrentView={setCurrentView} 
+      />
+    );
   }
 
+  // Dashboard (Main Menu)
   if (currentView === 'dashboard' && user) {
     return (
       <DashboardView
@@ -208,8 +234,20 @@ const App = () => {
         user={user}
         isDemo={isDemo}
         handleLogout={handleLogout}
-        isBatchMode={isBatchMode}
-        setIsBatchMode={setIsBatchMode}
+      />
+    );
+  }
+
+  // Analysis Views (Simple & Batch)
+  if ((currentView === 'analysis-simple' || currentView === 'analysis-batch') && user) {
+    return (
+      <AnalysisView
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        user={user}
+        isDemo={isDemo}
+        handleLogout={handleLogout}
+        isBatchMode={currentView === 'analysis-batch'}
         text={text}
         setText={setText}
         analyzing={analyzing}
@@ -223,6 +261,7 @@ const App = () => {
     );
   }
 
+  // History View
   if (currentView === 'history' && user && !isDemo) {
     return (
       <HistoryView
@@ -238,6 +277,7 @@ const App = () => {
     );
   }
 
+  // Fallback
   return null;
 };
 
