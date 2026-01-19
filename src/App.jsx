@@ -5,6 +5,7 @@ import Auth from './views/Auth';
 import DashboardView from './views/DashboardView';
 import AnalysisView from './views/AnalysisView';
 import HistoryView from './views/HistoryView';
+import DemoSelectionView from './views/DemoSelectionView';
 import { sentimentService } from './services/sentimentService';
 
 const App = () => {
@@ -32,8 +33,7 @@ const App = () => {
     setAnalyzing(true);
     setErrorMessage('');
     
-    // Determinar si es batch mode basado en la vista actual
-    const isBatchMode = currentView === 'analysis-batch';
+    const isBatchMode = currentView === 'analysis-batch' || currentView === 'demo-batch';
     
     try {
       if (isBatchMode) {
@@ -86,8 +86,6 @@ const App = () => {
     
     const total = items.length;
     
-    console.log('📊 Estadísticas:', { counts, total, items });
-    
     return [
       { 
         name: 'Positivo', 
@@ -108,56 +106,6 @@ const App = () => {
         percentage: ((counts.neutral / total) * 100).toFixed(1)
       }
     ];
-  };
-
-  const getHistoryStatistics = () => {
-    const counts = {
-      positivo: 0,
-      negativo: 0,
-      neutral: 0
-    };
-    
-    historyData.forEach(item => {
-      const sentiment = item.sentiment?.toLowerCase().trim();
-      if (sentiment === 'positivo') counts.positivo++;
-      else if (sentiment === 'negativo') counts.negativo++;
-      else if (sentiment === 'neutral') counts.neutral++;
-    });
-    
-    const total = historyData.length;
-    
-    return [
-      { 
-        name: 'Positivo', 
-        value: counts.positivo, 
-        color: '#10b981', 
-        percentage: ((counts.positivo / total) * 100).toFixed(1)
-      },
-      { 
-        name: 'Negativo', 
-        value: counts.negativo, 
-        color: '#ef4444', 
-        percentage: ((counts.negativo / total) * 100).toFixed(1)
-      },
-      { 
-        name: 'Neutral', 
-        value: counts.neutral, 
-        color: '#f59e0b', 
-        percentage: ((counts.neutral / total) * 100).toFixed(1)
-      }
-    ];
-  };
-
-  const getScoreDistribution = () => {
-    const ranges = { '0.0-0.2': 0, '0.2-0.4': 0, '0.4-0.6': 0, '0.6-0.8': 0, '0.8-1.0': 0 };
-    historyData.forEach(h => {
-      if (h.score < 0.2) ranges['0.0-0.2']++;
-      else if (h.score < 0.4) ranges['0.2-0.4']++;
-      else if (h.score < 0.6) ranges['0.4-0.6']++;
-      else if (h.score < 0.8) ranges['0.6-0.8']++;
-      else ranges['0.8-1.0']++;
-    });
-    return Object.entries(ranges).map(([name, value]) => ({ name, value }));
   };
 
   const handleLogin = (e, userData) => {
@@ -190,13 +138,18 @@ const App = () => {
     setErrorMessage('');
   };
 
+  const handleDemoStart = () => {
+    setUser({ email: 'demo@sentimentapi.com', name: 'Demo' });
+    setIsDemo(true);
+    setCurrentView('demo-selection');
+  };
+
   // Landing Page
   if (currentView === 'landing') {
     return (
       <Landing 
         setCurrentView={setCurrentView} 
-        setUser={setUser} 
-        setIsDemo={setIsDemo} 
+        handleDemoStart={handleDemoStart}
         showMobileMenu={showMobileMenu} 
         setShowMobileMenu={setShowMobileMenu} 
       />
@@ -225,8 +178,18 @@ const App = () => {
     );
   }
 
-  // Dashboard (Main Menu)
-  if (currentView === 'dashboard' && user) {
+  // Demo Selection View
+  if (currentView === 'demo-selection' && user && isDemo) {
+    return (
+      <DemoSelectionView
+        setCurrentView={setCurrentView}
+        handleLogout={handleLogout}
+      />
+    );
+  }
+
+  // Dashboard (Main Menu) - Solo para usuarios registrados
+  if (currentView === 'dashboard' && user && !isDemo) {
     return (
       <DashboardView
         currentView={currentView}
@@ -238,8 +201,12 @@ const App = () => {
     );
   }
 
-  // Analysis Views (Simple & Batch)
-  if ((currentView === 'analysis-simple' || currentView === 'analysis-batch') && user) {
+  // Analysis Views (Simple & Batch) - Para usuarios registrados Y demo
+  if ((currentView === 'analysis-simple' || currentView === 'analysis-batch' || 
+       currentView === 'demo-simple' || currentView === 'demo-batch') && user) {
+    
+    const isBatchMode = currentView === 'analysis-batch' || currentView === 'demo-batch';
+    
     return (
       <AnalysisView
         currentView={currentView}
@@ -247,7 +214,7 @@ const App = () => {
         user={user}
         isDemo={isDemo}
         handleLogout={handleLogout}
-        isBatchMode={currentView === 'analysis-batch'}
+        isBatchMode={isBatchMode}
         text={text}
         setText={setText}
         analyzing={analyzing}
@@ -261,7 +228,7 @@ const App = () => {
     );
   }
 
-  // History View
+  // History View - Solo para usuarios registrados
   if (currentView === 'history' && user && !isDemo) {
     return (
       <HistoryView
@@ -270,8 +237,6 @@ const App = () => {
         user={user}
         handleLogout={handleLogout}
         historyData={historyData}
-        getHistoryStatistics={getHistoryStatistics}
-        getScoreDistribution={getScoreDistribution}
         getSentimentColor={getSentimentColor}
       />
     );

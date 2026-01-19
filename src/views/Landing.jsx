@@ -1,7 +1,8 @@
+// src/views/Landing.jsx
 import React from 'react';
 import { Sparkles, Zap, Brain, BarChart3, Menu, X } from 'lucide-react';
 
-const Landing = ({ setCurrentView, setUser, setIsDemo, showMobileMenu, setShowMobileMenu }) => {
+const Landing = ({ setCurrentView, handleDemoStart, showMobileMenu, setShowMobileMenu }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Navigation */}
@@ -81,11 +82,7 @@ const Landing = ({ setCurrentView, setUser, setIsDemo, showMobileMenu, setShowMo
               Comenzar Gratis
             </button>
             <button
-              onClick={() => {
-                setUser({ email: 'demo@sentimentapi.com', name: 'Demo' });
-                setIsDemo(true);
-                setCurrentView('dashboard');
-              }}
+              onClick={handleDemoStart}
               className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white text-lg rounded-xl font-bold hover:bg-white/20 transition-all border border-white/20"
             >
               Ver Demo
