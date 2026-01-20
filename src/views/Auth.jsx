@@ -1,5 +1,5 @@
 // src/views/Auth.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, LogIn, UserPlus, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { authService } from '../services/authService';
 
@@ -14,6 +14,19 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
     correo: '',
     contraseña: '',
   });
+
+  // ✅ Limpiar estados cuando cambia el tipo de vista (login/register)
+  useEffect(() => {
+    setLoading(false);
+    setError('');
+    setSuccess('');
+    setFormData({
+      nombre: '',
+      apellido: '',
+      correo: '',
+      contraseña: '',
+    });
+  }, [type]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -38,7 +51,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
       } else {
         result = await authService.register(formData);
         if (result.success) {
-          setSuccess('¡Cuenta creada con éxito! Ahora puedes iniciar sesión.');
+          setSuccess('¡Cuenta creada con éxito! Redirigiendo al inicio de sesión...');
           // Limpiar formulario
           setFormData({
             nombre: '',
@@ -48,7 +61,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
           });
           // Esperar 2 segundos antes de redirigir
           setTimeout(() => {
-            handleSubmit(e, result.user);
+            setCurrentView('login');
           }, 2000);
         }
       }
@@ -106,7 +119,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
                     value={formData.nombre}
                     onChange={handleInputChange}
                     disabled={loading || success}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Juan"
                   />
                 </div>
@@ -120,7 +133,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
                     value={formData.apellido}
                     onChange={handleInputChange}
                     disabled={loading || success}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Pérez"
                   />
                 </div>
@@ -136,7 +149,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
                 value={formData.correo}
                 onChange={handleInputChange}
                 disabled={loading || success}
-                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="tu@email.com"
               />
             </div>
@@ -150,7 +163,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
                 value={formData.contraseña}
                 onChange={handleInputChange}
                 disabled={loading || success}
-                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="••••••••"
               />
             </div>
@@ -180,7 +193,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
             <div className="mt-6 text-center">
               <button
                 onClick={() => setCurrentView(isLogin ? 'register' : 'login')}
-                className="text-purple-400 hover:text-purple-300 font-semibold"
+                className="text-purple-400 hover:text-purple-300 font-semibold transition-colors"
                 disabled={loading}
               >
                 {isLogin ? '¿No tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión'}
@@ -191,7 +204,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
           <div className="mt-4 text-center">
             <button
               onClick={() => setCurrentView('landing')}
-              className="text-gray-400 hover:text-gray-300 text-sm"
+              className="text-gray-400 hover:text-gray-300 text-sm transition-colors"
               disabled={loading || success}
             >
               ← Volver al inicio
