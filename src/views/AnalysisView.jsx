@@ -1,3 +1,4 @@
+// src/views/AnalysisView.jsx
 import React from 'react';
 import { Sparkles, Send, TrendingUp, AlertCircle, Home, History, LogOut, BarChart3, FileText, ArrowLeft } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -8,6 +9,7 @@ const AnalysisView = ({
   user,
   isDemo,
   handleLogout,
+  handleBackToLanding,
   isBatchMode,
   text,
   setText,
@@ -92,7 +94,7 @@ const AnalysisView = ({
     );
   };
 
-  // ✅ NUEVO: Renderizado de resultados detallados (como en la imagen 2)
+  // Renderizado de resultados detallados
   const renderDetailedResults = () => {
     if (!results) return null;
 
@@ -216,18 +218,6 @@ const AnalysisView = ({
             ))}
           </div>
         </div>
-
-        {/* Gráficos Opcionales */}
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
-            <h4 className="text-white font-bold mb-4 text-xl">Distribución de Sentimientos</h4>
-            {renderPieChart()}
-          </div>
-          <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
-            <h4 className="text-white font-bold mb-4 text-xl">Distribución de Confianza</h4>
-            {renderScoreDistribution()}
-          </div>
-        </div>
       </div>
     );
   };
@@ -258,7 +248,7 @@ const AnalysisView = ({
                   Retroceder
                 </button>
                 <button
-                  onClick={handleLogout}
+                  onClick={handleBackToLanding}
                   className="flex items-center gap-2 px-5 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 hover:text-white rounded-xl font-semibold transition-all border border-purple-500/30"
                 >
                   <LogOut className="w-4 h-4" />
@@ -303,122 +293,8 @@ const AnalysisView = ({
             </button>
           </div>
 
-          {/* Resultados Detallados MODO DEMO */}
-          {results && !analyzing && (
-            <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {!results.isBatch ? (
-                // Análisis Simple Demo
-                <>
-                  <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-cyan-500/30 mb-8">
-                    <div className="flex items-center gap-4 mb-6">
-                      <TrendingUp className="w-10 h-10 text-cyan-400" />
-                      <h3 className="text-3xl font-black text-white">Análisis Completado</h3>
-                    </div>
-                    
-                    <div className="text-center py-8">
-                      <p className="text-xl text-purple-200 mb-2">Textos Analizados</p>
-                      <p className="text-7xl font-black text-white mb-8">1</p>
-                    </div>
-
-                    <div className="bg-[#1a0b2e]/50 rounded-2xl p-8 border border-white/10">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-cyan-400 font-bold text-lg">TEXTO ANALIZADO</span>
-                        <span className="text-purple-300 font-semibold">Confianza: {(results.score * 100).toFixed(1)}%</span>
-                      </div>
-                      <p className="text-white text-xl mb-6 italic">"{results.text}"</p>
-                      
-                      <div className="flex items-center justify-between bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-xl p-6 border border-purple-500/30">
-                        <div>
-                          <p className="text-purple-300 text-sm font-semibold mb-1">SENTIMIENTO DETECTADO</p>
-                          <p className="text-4xl font-black uppercase" style={{color: getSentimentColor(results.sentiment)}}>
-                            {results.sentiment}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-purple-300 text-sm font-semibold mb-1">PROBABILIDAD</p>
-                          <p className="text-4xl font-black text-white">{(results.score * 100).toFixed(1)}%</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                // Análisis Múltiple Demo
-                <>
-                  <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-cyan-500/30 mb-8">
-                    <div className="flex items-center gap-4 mb-6">
-                      <TrendingUp className="w-10 h-10 text-cyan-400" />
-                      <h3 className="text-3xl font-black text-white">Análisis Completado</h3>
-                    </div>
-                    
-                    <div className="text-center py-8">
-                      <p className="text-xl text-purple-200 mb-2">Textos Analizados</p>
-                      <p className="text-7xl font-black text-white mb-8">{results.totalAnalyzed}</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-green-500/10 border-2 border-green-500/30 p-6 rounded-2xl text-center backdrop-blur-sm">
-                        <p className="text-green-400 font-bold text-lg mb-2">POSITIVOS</p>
-                        <p className="text-5xl text-white font-black mb-2">{getStatistics()[0].value}</p>
-                        <p className="text-green-300 text-sm">({getStatistics()[0].percentage}%)</p>
-                      </div>
-                      
-                      <div className="bg-red-500/10 border-2 border-red-500/30 p-6 rounded-2xl text-center backdrop-blur-sm">
-                        <p className="text-red-400 font-bold text-lg mb-2">NEGATIVOS</p>
-                        <p className="text-5xl text-white font-black mb-2">{getStatistics()[1].value}</p>
-                        <p className="text-red-300 text-sm">({getStatistics()[1].percentage}%)</p>
-                      </div>
-                      
-                      <div className="bg-amber-500/10 border-2 border-amber-500/30 p-6 rounded-2xl text-center backdrop-blur-sm">
-                        <p className="text-amber-400 font-bold text-lg mb-2">NEUTRALES</p>
-                        <p className="text-5xl text-white font-black mb-2">{getStatistics()[2].value}</p>
-                        <p className="text-amber-300 text-sm">({getStatistics()[2].percentage}%)</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">
-                    <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
-                      <BarChart3 className="w-6 h-6 text-purple-400" />
-                      Detalle de Análisis
-                    </h4>
-                    
-                    <div className="space-y-4">
-                      {results.items.map((item, index) => (
-                        <div 
-                          key={index}
-                          className="bg-[#1a0b2e]/50 rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <span className="bg-purple-500/20 text-purple-300 px-4 py-2 rounded-lg font-bold text-lg">
-                                #{index + 1}
-                              </span>
-                              <span 
-                                className="px-4 py-2 rounded-lg font-bold text-lg uppercase"
-                                style={{
-                                  backgroundColor: `${getSentimentColor(item.sentiment)}20`,
-                                  color: getSentimentColor(item.sentiment),
-                                  border: `2px solid ${getSentimentColor(item.sentiment)}50`
-                                }}
-                              >
-                                {item.sentiment}
-                              </span>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-purple-300 text-sm font-semibold">Confianza</p>
-                              <p className="text-2xl font-black text-white">{(item.score * 100).toFixed(1)}%</p>
-                            </div>
-                          </div>
-                          <p className="text-white text-lg italic">"{item.text}"</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+          {/* Resultados Detallados */}
+          {renderDetailedResults()}
         </main>
       </div>
     );

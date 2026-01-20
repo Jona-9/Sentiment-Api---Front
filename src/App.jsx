@@ -27,7 +27,7 @@ const App = () => {
     { sentiment: 'positivo', score: 0.91, text: 'Increíble experiencia', date: '2025-01-17' },
   ]);
 
-  // ✅ NUEVO: Limpiar texto y resultados al cambiar de modo
+  // ✅ Limpiar texto y resultados al cambiar de modo
   useEffect(() => {
     setText('');
     setResults(null);
@@ -45,11 +45,9 @@ const App = () => {
     try {
       if (isBatchMode) {
         const result = await sentimentService.analyzeBatch(text);
-        console.log('✅ Resultado batch:', result);
         setResults(result);
       } else {
         const result = await sentimentService.analyzeSingle(text);
-        console.log('✅ Resultado simple:', result);
         setResults(result);
       }
     } catch (error) {
@@ -66,9 +64,7 @@ const App = () => {
       case 'positivo': return '#10b981';
       case 'negativo': return '#ef4444';
       case 'neutral': return '#f59e0b';
-      default: 
-        console.warn('⚠️ Sentimiento desconocido:', sentiment);
-        return '#8b5cf6';
+      default: return '#8b5cf6';
     }
   };
 
@@ -77,41 +73,21 @@ const App = () => {
     const items = results.items || [];
     if (items.length === 0) return null;
     
-    const counts = {
-      positivo: 0,
-      negativo: 0,
-      neutral: 0
-    };
+    const counts = { positivo: 0, negativo: 0, neutral: 0 };
     
     items.forEach(item => {
       const sentiment = item.sentiment?.toLowerCase().trim();
       if (sentiment === 'positivo') counts.positivo++;
       else if (sentiment === 'negativo') counts.negativo++;
       else if (sentiment === 'neutral') counts.neutral++;
-      else console.warn('⚠️ Sentimiento no reconocido:', item.sentiment);
     });
     
     const total = items.length;
     
     return [
-      { 
-        name: 'Positivo', 
-        value: counts.positivo, 
-        color: '#10b981', 
-        percentage: ((counts.positivo / total) * 100).toFixed(1)
-      },
-      { 
-        name: 'Negativo', 
-        value: counts.negativo, 
-        color: '#ef4444', 
-        percentage: ((counts.negativo / total) * 100).toFixed(1)
-      },
-      { 
-        name: 'Neutral', 
-        value: counts.neutral, 
-        color: '#f59e0b', 
-        percentage: ((counts.neutral / total) * 100).toFixed(1)
-      }
+      { name: 'Positivo', value: counts.positivo, color: '#10b981', percentage: ((counts.positivo / total) * 100).toFixed(1) },
+      { name: 'Negativo', value: counts.negativo, color: '#ef4444', percentage: ((counts.negativo / total) * 100).toFixed(1) },
+      { name: 'Neutral', value: counts.neutral, color: '#f59e0b', percentage: ((counts.neutral / total) * 100).toFixed(1) }
     ];
   };
 
@@ -128,7 +104,6 @@ const App = () => {
 
   const handleRegister = (e, userData) => {
     e.preventDefault();
-    // No crear sesión automáticamente, solo redirigir al login
     setCurrentView('login');
   };
 
@@ -141,10 +116,21 @@ const App = () => {
     setErrorMessage('');
   };
 
+  // ✅ CORREGIDO: Manejo del Demo
   const handleDemoStart = () => {
     setUser({ email: 'demo@sentimentapi.com', name: 'Demo' });
     setIsDemo(true);
-    setCurrentView('demo-selection');
+    setCurrentView('demo-selection'); // Solo va a demo-selection
+  };
+
+  // ✅ NUEVO: Volver desde Demo al Landing
+  const handleBackToLanding = () => {
+    setUser(null);
+    setIsDemo(false);
+    setCurrentView('landing');
+    setText('');
+    setResults(null);
+    setErrorMessage('');
   };
 
   // Landing Page
@@ -181,12 +167,12 @@ const App = () => {
     );
   }
 
-  // Demo Selection View
+  // ✅ Demo Selection View - SOLO ACCESIBLE EN MODO DEMO
   if (currentView === 'demo-selection' && user && isDemo) {
     return (
       <DemoSelectionView
         setCurrentView={setCurrentView}
-        handleLogout={handleLogout}
+        handleBackToLanding={handleBackToLanding} // ✅ Pasamos la función correcta
       />
     );
   }
@@ -217,6 +203,7 @@ const App = () => {
         user={user}
         isDemo={isDemo}
         handleLogout={handleLogout}
+        handleBackToLanding={handleBackToLanding} // ✅ Pasamos también aquí
         isBatchMode={isBatchMode}
         text={text}
         setText={setText}
@@ -245,7 +232,7 @@ const App = () => {
     );
   }
 
-  // Fallback
+  // Fallback - Si algo sale mal, volver al landing
   return null;
 };
 
