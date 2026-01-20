@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Landing from './views/Landing';
 import Auth from './views/Auth';
 import DashboardView from './views/DashboardView';
@@ -26,6 +26,13 @@ const App = () => {
     { sentiment: 'neutral', score: 0.55, text: 'Está bien', date: '2025-01-16' },
     { sentiment: 'positivo', score: 0.91, text: 'Increíble experiencia', date: '2025-01-17' },
   ]);
+
+  // ✅ NUEVO: Limpiar texto y resultados al cambiar de modo
+  useEffect(() => {
+    setText('');
+    setResults(null);
+    setErrorMessage('');
+  }, [currentView]);
 
   const analyzeSentiment = async () => {
     if (!text.trim()) return;
@@ -121,12 +128,8 @@ const App = () => {
 
   const handleRegister = (e, userData) => {
     e.preventDefault();
-    setUser({
-      email: userData.correo,
-      name: `${userData.nombre} ${userData.apellido}`,
-    });
-    setIsDemo(false);
-    setCurrentView('dashboard');
+    // No crear sesión automáticamente, solo redirigir al login
+    setCurrentView('login');
   };
 
   const handleLogout = () => {

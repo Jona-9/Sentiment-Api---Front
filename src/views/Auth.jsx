@@ -1,12 +1,13 @@
 // src/views/Auth.jsx
 import React, { useState } from 'react';
-import { Sparkles, LogIn, UserPlus, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, LogIn, UserPlus, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { authService } from '../services/authService';
 
 const Auth = ({ type, handleSubmit, setCurrentView }) => {
   const isLogin = type === 'login';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
@@ -17,24 +18,39 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
+    setSuccess('');
   };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     try {
       let result;
       
       if (isLogin) {
         result = await authService.login(formData.correo, formData.contraseña);
+        if (result.success) {
+          handleSubmit(e, result.user);
+        }
       } else {
         result = await authService.register(formData);
-      }
-
-      if (result.success) {
-        handleSubmit(e, result.user);
+        if (result.success) {
+          setSuccess('¡Cuenta creada con éxito! Ahora puedes iniciar sesión.');
+          // Limpiar formulario
+          setFormData({
+            nombre: '',
+            apellido: '',
+            correo: '',
+            contraseña: '',
+          });
+          // Esperar 2 segundos antes de redirigir
+          setTimeout(() => {
+            handleSubmit(e, result.user);
+          }, 2000);
+        }
       }
     } catch (err) {
       setError(err.message || 'Ocurrió un error. Intenta nuevamente.');
@@ -62,10 +78,19 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
         </div>
 
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20">
+          {/* Mensaje de Error */}
           {error && (
-            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start gap-3">
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
               <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
               <p className="text-red-300 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Mensaje de Éxito */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-500/20 border-2 border-green-500/50 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+              <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <p className="text-green-300 text-sm font-semibold">{success}</p>
             </div>
           )}
 
@@ -80,7 +105,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
                     required
                     value={formData.nombre}
                     onChange={handleInputChange}
-                    disabled={loading}
+                    disabled={loading || success}
                     className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                     placeholder="Juan"
                   />
@@ -94,7 +119,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
                     required
                     value={formData.apellido}
                     onChange={handleInputChange}
-                    disabled={loading}
+                    disabled={loading || success}
                     className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                     placeholder="Pérez"
                   />
@@ -110,7 +135,7 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
                 required
                 value={formData.correo}
                 onChange={handleInputChange}
-                disabled={loading}
+                disabled={loading || success}
                 className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                 placeholder="tu@email.com"
               />
@@ -124,46 +149,50 @@ const Auth = ({ type, handleSubmit, setCurrentView }) => {
                 required
                 value={formData.contraseña}
                 onChange={handleInputChange}
-                disabled={loading}
+                disabled={loading || success}
                 className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                 placeholder="••••••••"
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  {isLogin ? 'Iniciando sesión...' : 'Registrando...'}
-                </>
-              ) : (
-                <>
-                  {isLogin ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                  {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
-                </>
-              )}
-            </button>
+            {!success && (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    {isLogin ? 'Iniciando sesión...' : 'Registrando...'}
+                  </>
+                ) : (
+                  <>
+                    {isLogin ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                    {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                  </>
+                )}
+              </button>
+            )}
           </form>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => setCurrentView(isLogin ? 'register' : 'login')}
-              className="text-purple-400 hover:text-purple-300 font-semibold"
-              disabled={loading}
-            >
-              {isLogin ? '¿No tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión'}
-            </button>
-          </div>
+          {!success && (
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => setCurrentView(isLogin ? 'register' : 'login')}
+                className="text-purple-400 hover:text-purple-300 font-semibold"
+                disabled={loading}
+              >
+                {isLogin ? '¿No tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión'}
+              </button>
+            </div>
+          )}
 
           <div className="mt-4 text-center">
             <button
               onClick={() => setCurrentView('landing')}
               className="text-gray-400 hover:text-gray-300 text-sm"
-              disabled={loading}
+              disabled={loading || success}
             >
               ← Volver al inicio
             </button>
