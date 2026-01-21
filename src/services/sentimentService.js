@@ -30,14 +30,12 @@ export const sentimentService = {
 
       const data = await response.json();
       
-      // ✅ CORREGIDO: Normalizar el sentimiento correctamente
       const normalizeSentiment = (prevision) => {
         const sentiment = prevision.toLowerCase().trim();
-        // Manejar variaciones comunes
         if (sentiment === 'positivo' || sentiment === 'positive') return 'positivo';
         if (sentiment === 'negativo' || sentiment === 'negative') return 'negativo';
         if (sentiment === 'neutral' || sentiment === 'neutro') return 'neutral';
-        return sentiment; // Fallback
+        return sentiment;
       };
       
       return {
@@ -79,7 +77,6 @@ export const sentimentService = {
 
       const data = await response.json();
       
-      // ✅ CORREGIDO: Normalizar el sentimiento correctamente
       const normalizeSentiment = (prevision) => {
         const sentiment = prevision.toLowerCase().trim();
         if (sentiment === 'positivo' || sentiment === 'positive') return 'positivo';
@@ -88,7 +85,6 @@ export const sentimentService = {
         return sentiment;
       };
       
-      // Convertir respuesta del backend al formato del frontend
       const textsArray = text.split('\n').filter(t => t.trim());
       
       return {
@@ -102,6 +98,78 @@ export const sentimentService = {
       };
     } catch (error) {
       console.error('Error en análisis batch:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Analiza comentarios y guarda la sesión en la base de datos (requiere autenticación)
+   * @param {Array<string>} comentarios - Lista de textos a analizar
+   * @param {string} token - JWT token del usuario autenticado
+   * @returns {Promise<Object>} Sesión guardada con estadísticas
+   */
+  async analyzeAndSave(comentarios, token) {
+    try {
+      const response = await fetch(API_ENDPOINTS.ANALYZE_AND_SAVE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // ✅ TOKEN JWT
+        },
+        body: JSON.stringify({ comentarios }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('No autorizado. Por favor, inicia sesión nuevamente.');
+        }
+        if (response.status === 502) {
+          throw new Error('El servidor de IA no está disponible');
+        }
+        throw new Error('Error al analizar y guardar los comentarios');
+      }
+
+      const data = await response.json();
+      
+      return {
+        sessionId: data.sessionId,
+        date: data.date,
+        avgScore: data.avgScore,
+        total: data.total,
+        positivos: data.positivos,
+        negativos: data.negativos,
+        neutrales: data.neutrales,
+      };
+    } catch (error) {
+      console.error('Error en analyzeAndSave:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene el historial de sesiones del usuario
+   * @param {string} token - JWT token del usuario autenticado
+   * @returns {Promise<Array>} Lista de sesiones
+   */
+  async getHistory(token) {
+    try {
+      const response = await fetch(API_ENDPOINTS.GET_HISTORY, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('No autorizado');
+        }
+        throw new Error('Error al obtener historial');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error en getHistory:', error);
       throw error;
     }
   },

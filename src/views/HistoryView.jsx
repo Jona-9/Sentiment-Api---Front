@@ -1,30 +1,45 @@
+// src/views/HistoryView.jsx
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Home, Clock, LogOut, TrendingUp, BarChart3, Calendar, Database, Zap, AlertCircle } from 'lucide-react';
+import { Sparkles, Home, LogOut, TrendingUp, BarChart3, Calendar, Database, Zap, AlertCircle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { sentimentService } from '../services/sentimentService';
 
 const HistoryView = ({ currentView, setCurrentView, user, handleLogout }) => {
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // 🔹 Aquí conectarás con tu API de Java: GET /api/v1/usuario/{id}/trayectoria
     const fetchHistoricalData = async () => {
+      if (!user?.token) {
+        setError('No hay token de autenticación');
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      const mockData = [
-        { sessionId: 1, date: '2025-01-10', avgScore: 0.72, total: 50, positivos: 30, negativos: 10, neutrales: 10 },
-        { sessionId: 2, date: '2025-01-12', avgScore: 0.68, total: 75, positivos: 45, negativos: 20, neutrales: 10 },
-        { sessionId: 3, date: '2025-01-14', avgScore: 0.81, total: 100, positivos: 70, negativos: 15, neutrales: 15 },
-        { sessionId: 4, date: '2025-01-15', avgScore: 0.75, total: 60, positivos: 40, negativos: 12, neutrales: 8 },
-        { sessionId: 5, date: '2025-01-17', avgScore: 0.88, total: 120, positivos: 95, negativos: 15, neutrales: 10 },
-      ];
-      setTimeout(() => { setHistoryData(mockData); setLoading(false); }, 500);
+      setError('');
+      
+      try {
+        // 🔥 LLAMADA REAL AL BACKEND
+        const data = await sentimentService.getHistory(user.token);
+        setHistoryData(data);
+      } catch (err) {
+        console.error('Error al cargar historial:', err);
+        setError(err.message || 'Error al cargar el historial');
+        setHistoryData([]);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchHistoricalData();
-  }, [user]);
+
+    if (currentView === 'history' && user) {
+      fetchHistoricalData();
+    }
+  }, [currentView, user]);
 
   if (currentView !== 'history' || !user) return null;
 
-  // 🔹 Cálculos de Tarjetas de Resumen Global (Persistente)
   const totalSesiones = historyData.length;
   const totalGlobalTextos = historyData.reduce((sum, s) => sum + s.total, 0);
   const totalPositivos = historyData.reduce((sum, s) => sum + s.positivos, 0);
@@ -53,24 +68,42 @@ const HistoryView = ({ currentView, setCurrentView, user, handleLogout }) => {
             <div className="w-16 h-16 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mb-4"></div>
             <p className="text-xl font-bold">Consultando base de datos PostgreSQL...</p>
           </div>
+        ) : error ? (
+          <div className="bg-red-500/20 border-2 border-red-500/50 rounded-2xl p-8 flex items-start gap-4">
+            <AlertCircle className="w-8 h-8 text-red-400 flex-shrink-0" />
+            <div>
+              <h3 className="text-xl font-bold text-red-300 mb-2">Error al cargar historial</h3>
+              <p className="text-red-200">{error}</p>
+            </div>
+          </div>
+        ) : totalSesiones === 0 ? (
+          <div className="bg-purple-500/20 border-2 border-purple-500/50 rounded-2xl p-12 text-center">
+            <Database className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white mb-2">No hay sesiones registradas</h3>
+            <p className="text-purple-300 mb-6">Comienza a analizar comentarios para ver tu historial aquí</p>
+            <button
+              onClick={() => setCurrentView('analysis-batch')}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all"
+            >
+              Analizar Comentarios
+            </button>
+          </div>
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             
-            {/* 🔹 TARJETAS DE RESUMEN GLOBAL */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <StatCard title="SESIONES TOTALES" value={totalSesiones} sub="Registros en BD" icon={<Database/>} color="text-indigo-400" />
               <StatCard title="TOTAL ANÁLISIS" value={totalGlobalTextos} sub="Textos procesados" icon={<BarChart3/>} color="text-purple-400" />
-              <StatCard title="EFECTIVIDAD POSITIVA" value={`${((totalPositivos/totalGlobalTextos)*100).toFixed(1)}%`} sub="Satisfacción global" icon={<Zap/>} color="text-cyan-400" />
-              <StatCard title="FECHA ÚLTIMA CARGA" value="Hoy" sub="Actualización" icon={<Calendar/>} color="text-emerald-400" />
+              <StatCard title="EFECTIVIDAD POSITIVA" value={totalGlobalTextos > 0 ? `${((totalPositivos/totalGlobalTextos)*100).toFixed(1)}%` : '0%'} sub="Satisfacción global" icon={<Zap/>} color="text-cyan-400" />
+              <StatCard title="ÚLTIMA SESIÓN" value={historyData[0]?.date || 'N/A'} sub="Fecha" icon={<Calendar/>} color="text-emerald-400" />
             </div>
 
-            {/* 🔹 GRÁFICO DE TENDENCIA (Spline Area Chart) */}
             {totalSesiones >= 2 && (
               <div className="bg-white/5 backdrop-blur-2xl rounded-3xl p-8 border border-white/10 shadow-2xl">
                 <h3 className="text-xl font-bold mb-8 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-cyan-400"/> Evolución de Puntuaciones (Promedio por Tanda)</h3>
                 <div className="h-96">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={historyData.map((s, i) => ({ name: `Análisis #${i+1}`, score: (s.avgScore * 100).toFixed(0) }))}>
+                    <AreaChart data={historyData.map((s, i) => ({ name: `#${i+1}`, score: (s.avgScore * 100).toFixed(0) }))}>
                       <defs>
                         <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4}/>
@@ -82,12 +115,12 @@ const HistoryView = ({ currentView, setCurrentView, user, handleLogout }) => {
                       <YAxis stroke="#64748b" fontSize={12} unit="%" />
                       <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155' }} />
                       <Area 
-                        type="monotone" // Esto crea el efecto "Spline" (suavizado)
+                        type="monotone"
                         dataKey="score" 
                         stroke="#22d3ee" 
                         strokeWidth={4} 
                         fill="url(#colorTrend)" 
-                        dot={{ r: 6, fill: '#22d3ee', strokeWidth: 2, stroke: '#fff' }} // Puntos marcados
+                        dot={{ r: 6, fill: '#22d3ee', strokeWidth: 2, stroke: '#fff' }}
                         activeDot={{ r: 8, strokeWidth: 0 }}
                       />
                     </AreaChart>
@@ -102,7 +135,6 @@ const HistoryView = ({ currentView, setCurrentView, user, handleLogout }) => {
   );
 };
 
-// Componente Interno para las Tarjetas
 const StatCard = ({ title, value, sub, icon, color }) => (
   <div className="bg-white/5 backdrop-blur-md p-6 rounded-3xl border border-white/10 hover:bg-white/10 transition-all duration-300">
     <div className="flex justify-between items-start mb-4">

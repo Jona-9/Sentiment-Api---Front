@@ -19,15 +19,9 @@ const App = () => {
   const [results, setResults] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   
-  const [historyData] = useState([
-    { sentiment: 'positivo', score: 0.85, text: 'Excelente producto', date: '2025-01-15' },
-    { sentiment: 'negativo', score: 0.92, text: 'Muy mal servicio', date: '2025-01-15' },
-    { sentiment: 'positivo', score: 0.78, text: 'Me encanta', date: '2025-01-16' },
-    { sentiment: 'neutral', score: 0.55, text: 'Está bien', date: '2025-01-16' },
-    { sentiment: 'positivo', score: 0.91, text: 'Increíble experiencia', date: '2025-01-17' },
-  ]);
+  const [historyData, setHistoryData] = useState([]);
 
-  // ✅ Limpiar texto y resultados al cambiar de modo
+  // Limpiar texto y resultados al cambiar de modo
   useEffect(() => {
     setText('');
     setResults(null);
@@ -44,8 +38,35 @@ const App = () => {
     
     try {
       if (isBatchMode) {
-        const result = await sentimentService.analyzeBatch(text);
-        setResults(result);
+        const comentarios = text.split('\n').filter(t => t.trim());
+        
+        // ✅ Si el usuario está registrado, guardar en BD
+        if (user && !isDemo && user.token) {
+          const result = await sentimentService.analyzeAndSave(comentarios, user.token);
+          
+          // Convertir la respuesta del backend al formato del frontend
+          setResults({
+            isBatch: true,
+            totalAnalyzed: result.total,
+            sessionSaved: true,
+            sessionId: result.sessionId,
+            items: comentarios.map((comentario) => ({
+              text: comentario,
+              sentiment: 'procesado', // El backend ya procesó todo
+              score: result.avgScore,
+            })),
+            stats: {
+              avgScore: result.avgScore,
+              positivos: result.positivos,
+              negativos: result.negativos,
+              neutrales: result.neutrales,
+            }
+          });
+        } else {
+          // Modo demo: solo analizar sin guardar
+          const result = await sentimentService.analyzeBatch(text);
+          setResults(result);
+        }
       } else {
         const result = await sentimentService.analyzeSingle(text);
         setResults(result);
@@ -70,6 +91,20 @@ const App = () => {
 
   const getStatistics = () => {
     if (!results?.isBatch) return null;
+    
+    // Si ya tenemos estadísticas del backend, usarlas
+    if (results.stats) {
+      const { positivos, negativos, neutrales } = results.stats;
+      const total = positivos + negativos + neutrales;
+      
+      return [
+        { name: 'Positivo', value: positivos, color: '#10b981', percentage: ((positivos / total) * 100).toFixed(1) },
+        { name: 'Negativo', value: negativos, color: '#ef4444', percentage: ((negativos / total) * 100).toFixed(1) },
+        { name: 'Neutral', value: neutrales, color: '#f59e0b', percentage: ((neutrales / total) * 100).toFixed(1) }
+      ];
+    }
+    
+    // Calcular desde items (modo demo)
     const items = results.items || [];
     if (items.length === 0) return null;
     
@@ -97,6 +132,7 @@ const App = () => {
       id: userData.id,
       email: userData.correo,
       name: `${userData.nombre} ${userData.apellido}`,
+      token: userData.token, // ✅ GUARDAR TOKEN
     });
     setIsDemo(false);
     setCurrentView('dashboard');
@@ -116,14 +152,12 @@ const App = () => {
     setErrorMessage('');
   };
 
-  // ✅ CORREGIDO: Manejo del Demo
   const handleDemoStart = () => {
     setUser({ email: 'demo@sentimentapi.com', name: 'Demo' });
     setIsDemo(true);
-    setCurrentView('demo-selection'); // Solo va a demo-selection
+    setCurrentView('demo-selection');
   };
 
-  // ✅ NUEVO: Volver desde Demo al Landing
   const handleBackToLanding = () => {
     setUser(null);
     setIsDemo(false);
@@ -167,17 +201,17 @@ const App = () => {
     );
   }
 
-  // ✅ Demo Selection View - SOLO ACCESIBLE EN MODO DEMO
+  // Demo Selection View
   if (currentView === 'demo-selection' && user && isDemo) {
     return (
       <DemoSelectionView
         setCurrentView={setCurrentView}
-        handleBackToLanding={handleBackToLanding} // ✅ Pasamos la función correcta
+        handleBackToLanding={handleBackToLanding}
       />
     );
   }
 
-  // Dashboard (Main Menu) - Solo para usuarios registrados
+  // Dashboard (Main Menu)
   if (currentView === 'dashboard' && user && !isDemo) {
     return (
       <DashboardView
@@ -190,7 +224,7 @@ const App = () => {
     );
   }
 
-  // Analysis Views (Simple & Batch) - Para usuarios registrados Y demo
+  // Analysis Views (Simple & Batch)
   if ((currentView === 'analysis-simple' || currentView === 'analysis-batch' || 
        currentView === 'demo-simple' || currentView === 'demo-batch') && user) {
     
@@ -203,7 +237,7 @@ const App = () => {
         user={user}
         isDemo={isDemo}
         handleLogout={handleLogout}
-        handleBackToLanding={handleBackToLanding} // ✅ Pasamos también aquí
+        handleBackToLanding={handleBackToLanding}
         isBatchMode={isBatchMode}
         text={text}
         setText={setText}
@@ -218,7 +252,7 @@ const App = () => {
     );
   }
 
-  // History View - Solo para usuarios registrados
+  // History View
   if (currentView === 'history' && user && !isDemo) {
     return (
       <HistoryView
@@ -228,11 +262,11 @@ const App = () => {
         handleLogout={handleLogout}
         historyData={historyData}
         getSentimentColor={getSentimentColor}
+        userToken={user.token} // ✅ PASAR TOKEN
       />
     );
   }
 
-  // Fallback - Si algo sale mal, volver al landing
   return null;
 };
 

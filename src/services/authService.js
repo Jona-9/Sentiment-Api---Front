@@ -22,7 +22,6 @@ export const authService = {
         throw new Error(errorData.message || 'Error al registrar usuario');
       }
 
-      // El backend retorna 200 OK con body vacío
       return {
         success: true,
         user: {
@@ -41,12 +40,12 @@ export const authService = {
    * Inicia sesión
    * @param {string} correo 
    * @param {string} contraseña 
-   * @returns {Promise<Object>} Datos del usuario
+   * @returns {Promise<Object>} Datos del usuario + token JWT
    */
   async login(correo, contraseña) {
     try {
       const response = await fetch(API_ENDPOINTS.LOGIN, {
-        method: 'PATCH',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -57,13 +56,12 @@ export const authService = {
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Usuario no encontrado o credenciales incorrectas');
+        if (response.status === 401) {
+          throw new Error('Credenciales incorrectas');
         }
         throw new Error('Error al iniciar sesión');
       }
 
-      // El backend retorna UserDtoLogin con { id, nombre, apellido, correo }
       const userData = await response.json();
       
       return {
@@ -73,6 +71,7 @@ export const authService = {
           correo: userData.correo,
           nombre: userData.nombre,
           apellido: userData.apellido,
+          token: userData.token, // ✅ TOKEN JWT
         }
       };
     } catch (error) {
