@@ -12,7 +12,7 @@ const DashboardView = ({
   if (currentView !== 'dashboard' || !user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e]">
+    <div className="min-h-screen bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] flex flex-col">
       {/* Header */}
       <header className="bg-[#2d1b4e]/60 backdrop-blur-xl border-b border-purple-500/20 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -40,29 +40,29 @@ const DashboardView = ({
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-16">
+      {/* Main Content - Centrado verticalmente */}
+      <main className="flex-1 flex flex-col justify-center max-w-7xl mx-auto px-6 py-8 w-full">
         {/* Tagline */}
-        <div className="text-center mb-12">
-          <p className="text-xl text-purple-200 font-medium mb-8">
+        <div className="text-center mb-8">
+          <p className="text-xl text-purple-200 font-medium">
             Análisis de sentimientos en tiempo real con inteligencia artificial avanzada
           </p>
         </div>
 
         {/* Welcome Message */}
-        <div className="text-center mb-16">
-          <h2 className="text-6xl sm:text-7xl font-black text-white mb-6 leading-tight">
+        <div className="text-center mb-12">
+          <h2 className="text-5xl sm:text-6xl md:text-7xl font-black text-white mb-6 leading-tight">
             Hola {user.name || 'usuario'}!
           </h2>
           <div className="inline-block">
-            <h3 className="text-4xl sm:text-5xl font-bold text-white px-8 py-4 border-4 border-purple-400 rounded-2xl">
+            <h3 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white px-8 py-4 border-4 border-purple-400 rounded-2xl">
               Que deseas hacer hoy?
             </h3>
           </div>
         </div>
 
         {/* Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-8">
           {/* Análisis Simple */}
           <button
             onClick={() => setCurrentView('analysis-simple')}
@@ -129,7 +129,7 @@ const DashboardView = ({
 
         {/* Demo Banner */}
         {isDemo && (
-          <div className="mt-16 text-center">
+          <div className="text-center">
             <div className="inline-block bg-purple-500/20 backdrop-blur-xl rounded-2xl px-8 py-6 border border-purple-400/30">
               <p className="text-purple-200 text-lg mb-4">
                 🎯 Estás en <span className="font-bold text-white">modo DEMO</span>
@@ -146,7 +146,7 @@ const DashboardView = ({
       </main>
 
       {/* Footer Info */}
-      <div className="max-w-7xl mx-auto px-6 py-8 text-center text-purple-300/60 text-sm">
+      <div className="max-w-7xl mx-auto px-6 py-6 text-center text-purple-300/60 text-sm">
         <p>Powered by AI • Análisis en tiempo real • {new Date().getFullYear()}</p>
       </div>
     </div>
