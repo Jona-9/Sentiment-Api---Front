@@ -157,25 +157,85 @@ const AnalysisView = ({
             <p className="text-7xl font-black text-white mb-8">{results.totalAnalyzed}</p>
           </div>
 
-          {/* Tarjetas de Estadísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-green-500/10 border-2 border-green-500/30 p-6 rounded-2xl text-center backdrop-blur-sm">
-              <p className="text-green-400 font-bold text-lg mb-2">POSITIVOS</p>
-              <p className="text-5xl text-white font-black mb-2">{stats[0].value}</p>
-              <p className="text-green-300 text-sm">({stats[0].percentage}%)</p>
+          {/* Tarjetas de Estadísticas Mejoradas */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* Card Total Análisis */}
+            <div className="bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 border border-indigo-400/30 p-6 rounded-2xl backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-4">
+                <BarChart3 className="w-8 h-8 text-indigo-400" />
+                <span className="text-indigo-300 font-semibold text-sm">TOTAL ANÁLISIS</span>
+              </div>
+              <p className="text-5xl text-white font-black">{results.totalAnalyzed}</p>
             </div>
-            
-            <div className="bg-red-500/10 border-2 border-red-500/30 p-6 rounded-2xl text-center backdrop-blur-sm">
-              <p className="text-red-400 font-bold text-lg mb-2">NEGATIVOS</p>
-              <p className="text-5xl text-white font-black mb-2">{stats[1].value}</p>
-              <p className="text-red-300 text-sm">({stats[1].percentage}%)</p>
+
+            {/* Card Positivos */}
+            <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-400/30 p-6 rounded-2xl backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-8 h-8 bg-emerald-400 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold">+</span>
+                </div>
+                <span className="text-emerald-300 font-semibold text-sm">POSITIVOS</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <p className="text-5xl text-white font-black">{stats[0].value}</p>
+                <span className="text-emerald-400 text-xl font-bold">({stats[0].percentage}%)</span>
+              </div>
             </div>
-            
-            <div className="bg-amber-500/10 border-2 border-amber-500/30 p-6 rounded-2xl text-center backdrop-blur-sm">
-              <p className="text-amber-400 font-bold text-lg mb-2">NEUTRALES</p>
-              <p className="text-5xl text-white font-black mb-2">{stats[2].value}</p>
-              <p className="text-amber-300 text-sm">({stats[2].percentage}%)</p>
+
+            {/* Card Neutrales */}
+            <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/10 border border-amber-400/30 p-6 rounded-2xl backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold">~</span>
+                </div>
+                <span className="text-amber-300 font-semibold text-sm">NEUTRALES</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <p className="text-5xl text-white font-black">{stats[2].value}</p>
+                <span className="text-amber-400 text-xl font-bold">({stats[2].percentage}%)</span>
+              </div>
             </div>
+          </div>
+
+          {/* Card Negativos (nueva fila completa) */}
+          <div className="grid grid-cols-1 gap-6 mb-8">
+            <div className="bg-gradient-to-br from-red-500/10 to-red-600/10 border border-red-400/30 p-6 rounded-2xl backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-8 h-8 bg-red-400 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold">-</span>
+                </div>
+                <span className="text-red-300 font-semibold text-sm">NEGATIVOS</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <p className="text-5xl text-white font-black">{stats[1].value}</p>
+                <span className="text-red-400 text-xl font-bold">({stats[1].percentage}%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Gráficos de Distribución */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Distribución de Sentimientos (Gráfico de Pastel) */}
+          <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
+            <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-purple-400" />
+              </div>
+              Distribución de Sentimientos
+            </h4>
+            {renderPieChart()}
+          </div>
+
+          {/* Distribución de Puntuaciones (Gráfico de Barras) */}
+          <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
+            <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-cyan-500/20 rounded-xl flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-cyan-400" />
+              </div>
+              Distribución de Puntuaciones
+            </h4>
+            {renderScoreDistribution()}
           </div>
         </div>
 
