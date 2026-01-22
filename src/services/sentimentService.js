@@ -104,9 +104,10 @@ export const sentimentService = {
 
   /**
    * Analiza comentarios y guarda la sesión en la base de datos (requiere autenticación)
+   * ✅ MODIFICADO: Ahora retorna los comentarios individuales con su confianza
    * @param {Array<string>} comentarios - Lista de textos a analizar
    * @param {string} token - JWT token del usuario autenticado
-   * @returns {Promise<Object>} Sesión guardada con estadísticas
+   * @returns {Promise<Object>} Sesión guardada con estadísticas + comentarios individuales
    */
   async analyzeAndSave(comentarios, token) {
     try {
@@ -114,7 +115,7 @@ export const sentimentService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`, // ✅ TOKEN JWT
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ comentarios }),
       });
@@ -131,6 +132,13 @@ export const sentimentService = {
 
       const data = await response.json();
       
+      // ✅ MAPEAR COMENTARIOS INDIVIDUALES CON SU CONFIANZA
+      const comentariosConDetalles = data.comentarios?.map(comentario => ({
+        text: comentario.texto,
+        sentiment: comentario.sentimiento.toLowerCase(),
+        score: comentario.probabilidad, // ✅ Confianza individual del backend
+      })) || [];
+      
       return {
         sessionId: data.sessionId,
         date: data.date,
@@ -139,6 +147,7 @@ export const sentimentService = {
         positivos: data.positivos,
         negativos: data.negativos,
         neutrales: data.neutrales,
+        comentarios: comentariosConDetalles, // ✅ NUEVO: Comentarios con confianza individual
       };
     } catch (error) {
       console.error('Error en analyzeAndSave:', error);

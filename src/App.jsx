@@ -31,6 +31,8 @@ const AppContent = () => {
     setErrorMessage('');
   }, [location.pathname]);
 
+// ... código anterior sin cambios ...
+
   const analyzeSentiment = async () => {
     if (!text.trim()) return;
     
@@ -43,19 +45,17 @@ const AppContent = () => {
       if (isBatchMode) {
         const comentarios = text.split('\n').filter(t => t.trim());
         
+        // ✅ SOLO para usuarios autenticados NO DEMO
         if (user && !isDemo && user.token) {
           const result = await sentimentService.analyzeAndSave(comentarios, user.token);
           
+          // ✅ USAR COMENTARIOS INDIVIDUALES DEL BACKEND CON CONFIANZA
           setResults({
             isBatch: true,
             totalAnalyzed: result.total,
             sessionSaved: true,
             sessionId: result.sessionId,
-            items: comentarios.map((comentario) => ({
-              text: comentario,
-              sentiment: 'procesado',
-              score: result.avgScore,
-            })),
+            items: result.comentarios, // ✅ Ya tiene { text, sentiment, score }
             stats: {
               avgScore: result.avgScore,
               positivos: result.positivos,
@@ -64,6 +64,7 @@ const AppContent = () => {
             }
           });
         } else {
+          // ✅ MODO DEMO - SIN CAMBIOS
           const result = await sentimentService.analyzeBatch(text);
           setResults(result);
         }
@@ -78,6 +79,8 @@ const AppContent = () => {
       setAnalyzing(false);
     }
   };
+
+// ... resto del código sin cambios ...
 
   const getSentimentColor = (sentiment) => {
     const normalizedSentiment = sentiment?.toLowerCase().trim();
