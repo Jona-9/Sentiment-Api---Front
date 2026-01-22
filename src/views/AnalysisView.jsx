@@ -1,6 +1,6 @@
 // src/views/AnalysisView.jsx
-import React from 'react';
-import { Sparkles, Send, TrendingUp, AlertCircle, Home, History, LogOut, BarChart3, FileText, ArrowLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, Send, TrendingUp, AlertCircle, Home, History, LogOut, BarChart3, FileText, ArrowLeft, Upload, X } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const AnalysisView = ({
@@ -22,6 +22,115 @@ const AnalysisView = ({
   errorMessage
 }) => {
   
+  // 🔥 NUEVOS ESTADOS PARA CSV
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvTexts, setCsvTexts] = useState([]);
+  const [csvError, setCsvError] = useState('');
+
+  // 🔥 FUNCIÓN MEJORADA: DETECCIÓN AUTOMÁTICA DE CODIFICACIÓN (UTF-8 vs Excel/ANSI)
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      setCsvError('Solo se permiten archivos .csv');
+      return;
+    }
+
+    setCsvError('');
+    setCsvFile(file);
+
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      try {
+        const buffer = event.target.result;
+        let textContent;
+
+        // ESTRATEGIA HÍBRIDA:
+        try {
+          // 1. Intentamos leer como UTF-8 estricto
+          const decoder = new TextDecoder('utf-8', { fatal: true });
+          textContent = decoder.decode(buffer);
+        } catch (e) {
+          // 2. Si falla (típico de Excel en Windows), leemos como ISO-8859-1
+          // console.log('Detectado archivo ANSI/Excel, cambiando codificación...');
+          const decoder = new TextDecoder('iso-8859-1');
+          textContent = decoder.decode(buffer);
+        }
+
+        const lines = textContent.split(/\r\n|\n/).filter(line => line.trim());
+        
+        if (lines.length === 0) {
+          setCsvError('El archivo está vacío');
+          setCsvFile(null);
+          return;
+        }
+
+        // Procesar encabezados
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+        const textoIndex = headers.indexOf('texto');
+
+        if (textoIndex === -1) {
+          setCsvError('El archivo debe tener una columna llamada "texto"');
+          setCsvFile(null);
+          return;
+        }
+
+        const texts = [];
+        const limit = Math.min(lines.length, 501); // Header + 500 filas
+
+        for (let i = 1; i < limit; i++) {
+          // Regex para CSV que respeta comas dentro de comillas
+          const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+          
+          let texto = values[textoIndex]?.trim();
+          if (texto) {
+             if (texto.startsWith('"') && texto.endsWith('"')) {
+                 texto = texto.slice(1, -1);
+             }
+             texto = texto.replace(/""/g, '"');
+             if(texto) texts.push(texto);
+          }
+        }
+
+        if (texts.length === 0) {
+          setCsvError('No se encontraron textos válidos en el archivo');
+          setCsvFile(null);
+          return;
+        }
+
+        if (lines.length > 501) {
+           setCsvError('Nota: Se han procesado solo las primeras 500 filas.');
+        }
+
+        setCsvTexts(texts);
+        setText(texts.join('\n'));
+
+      } catch (error) {
+        console.error('Error al procesar el archivo:', error);
+        setCsvError('Error al leer el archivo');
+        setCsvFile(null);
+      }
+    };
+
+    reader.onerror = () => {
+      setCsvError('Error de lectura del archivo');
+      setCsvFile(null);
+    };
+
+    // Leemos como buffer para poder decodificar manualmente
+    reader.readAsArrayBuffer(file);
+  };
+
+  // 🔥 FUNCIÓN PARA LIMPIAR EL ARCHIVO
+  const handleClearFile = () => {
+    setCsvFile(null);
+    setCsvTexts([]);
+    setCsvError('');
+    setText('');
+  };
+
   // Renderizado del gráfico de pastel
   const renderPieChart = () => {
     const stats = getStatistics();
@@ -102,7 +211,6 @@ const AnalysisView = ({
     if (!results.isBatch) {
       return (
         <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* Header de Análisis Completado */}
           <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-cyan-500/30 mb-8">
             <div className="flex items-center gap-4 mb-6">
               <TrendingUp className="w-10 h-10 text-cyan-400" />
@@ -114,7 +222,6 @@ const AnalysisView = ({
               <p className="text-7xl font-black text-white mb-8">1</p>
             </div>
 
-            {/* Resultado del Sentimiento */}
             <div className="bg-[#1a0b2e]/50 rounded-2xl p-8 border border-white/10">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-cyan-400 font-bold text-lg">TEXTO ANALIZADO</span>
@@ -145,7 +252,6 @@ const AnalysisView = ({
     
     return (
       <div className="mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {/* Header de Análisis Completado */}
         <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-cyan-500/30">
           <div className="flex items-center gap-4 mb-6">
             <TrendingUp className="w-10 h-10 text-cyan-400" />
@@ -157,9 +263,7 @@ const AnalysisView = ({
             <p className="text-7xl font-black text-white mb-8">{results.totalAnalyzed}</p>
           </div>
 
-          {/* Tarjetas de Estadísticas Mejoradas */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {/* Card Total Análisis */}
             <div className="bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 border border-indigo-400/30 p-6 rounded-2xl backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4">
                 <BarChart3 className="w-8 h-8 text-indigo-400" />
@@ -168,7 +272,6 @@ const AnalysisView = ({
               <p className="text-5xl text-white font-black">{results.totalAnalyzed}</p>
             </div>
 
-            {/* Card Positivos */}
             <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-400/30 p-6 rounded-2xl backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-8 h-8 bg-emerald-400 rounded-full flex items-center justify-center">
@@ -182,7 +285,6 @@ const AnalysisView = ({
               </div>
             </div>
 
-            {/* Card Neutrales */}
             <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/10 border border-amber-400/30 p-6 rounded-2xl backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center">
@@ -197,7 +299,6 @@ const AnalysisView = ({
             </div>
           </div>
 
-          {/* Card Negativos (nueva fila completa) */}
           <div className="grid grid-cols-1 gap-6 mb-8">
             <div className="bg-gradient-to-br from-red-500/10 to-red-600/10 border border-red-400/30 p-6 rounded-2xl backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4">
@@ -214,10 +315,8 @@ const AnalysisView = ({
           </div>
         </div>
 
-        {/* 🔥 GRÁFICOS - OCULTOS SOLO EN MODO DEMO */}
         {!isDemo && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Distribución de Sentimientos (Gráfico de Pastel) */}
             <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
               <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
@@ -228,7 +327,6 @@ const AnalysisView = ({
               {renderPieChart()}
             </div>
 
-            {/* Distribución de Puntuaciones (Gráfico de Barras) */}
             <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
               <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
                 <div className="w-10 h-10 bg-cyan-500/20 rounded-xl flex items-center justify-center">
@@ -241,7 +339,6 @@ const AnalysisView = ({
           </div>
         )}
 
-        {/* Lista Detallada de Resultados */}
         <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">
           <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
             <BarChart3 className="w-6 h-6 text-purple-400" />
@@ -331,15 +428,75 @@ const AnalysisView = ({
           </div>
 
           <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30 mb-8">
-            <div className="relative mb-6">
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                maxLength={isBatchMode ? 5000 : 500}
-                placeholder={isBatchMode ? "Un texto por línea..." : "Escribe aquí..."}
-                className="w-full h-56 bg-[#1a0b2e]/50 border-2 border-purple-500/30 rounded-xl p-6 text-white placeholder-purple-300/60 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none transition-all text-lg"
-              />
-            </div>
+            {isBatchMode ? (
+              <div className="space-y-6">
+                {!csvFile ? (
+                  <div className="border-2 border-dashed border-purple-500/30 rounded-2xl p-12 text-center hover:border-purple-500/50 transition-all">
+                    <Upload className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold text-white mb-2">Selecciona un archivo CSV</h3>
+                    <p className="text-purple-300 mb-6">El archivo debe tener una columna 'texto' con los comentarios para analizar</p>
+                    <label className="inline-block px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold rounded-xl cursor-pointer transition-all shadow-xl">
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      Seleccionar archivo
+                    </label>
+                    <p className="text-sm text-purple-400 mt-4">
+                      <span className="font-bold">Formato:</span> archivo.csv con columna "texto" • <span className="font-bold">Máximo:</span> 500 filas
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-[#1a0b2e]/50 border-2 border-purple-500/30 rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-8 h-8 text-purple-400" />
+                        <div>
+                          <p className="text-white font-bold text-lg">{csvFile.name}</p>
+                          <p className="text-purple-300 text-sm">{csvTexts.length} textos encontrados</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleClearFile}
+                        className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    {/* Previsualización de textos */}
+                    <div className="bg-purple-900/20 rounded-lg p-4 max-h-48 overflow-y-auto">
+                      <p className="text-purple-200 text-sm font-mono">
+                        {csvTexts.slice(0, 5).map((t, i) => (
+                          <span key={i} className="block mb-1">• {t.substring(0, 80)}{t.length > 80 ? '...' : ''}</span>
+                        ))}
+                        {csvTexts.length > 5 && (
+                          <span className="block text-purple-400 font-bold mt-2">... y {csvTexts.length - 5} más</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {csvError && (
+                  <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300">
+                    <AlertCircle className="w-5 h-5" /> {csvError}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative mb-6">
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  maxLength={500}
+                  placeholder="Escribe aquí..."
+                  className="w-full h-56 bg-[#1a0b2e]/50 border-2 border-purple-500/30 rounded-xl p-6 text-white placeholder-purple-300/60 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none transition-all text-lg"
+                />
+              </div>
+            )}
+
             {errorMessage && (
               <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300">
                 <AlertCircle className="w-5 h-5" /> {errorMessage}
@@ -347,15 +504,14 @@ const AnalysisView = ({
             )}
             <button
               onClick={analyzeSentiment}
-              disabled={!text.trim() || analyzing}
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-3 transition-all text-lg shadow-xl shadow-purple-500/20"
+              disabled={(!text.trim() && !csvFile) || analyzing}
+              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-5 rounded-xl flex items-center justify-center gap-3 transition-all text-lg shadow-xl shadow-purple-500/20"
             >
               <Send className="w-6 h-6" />
               {analyzing ? 'Analizando...' : 'Analizar ahora'}
             </button>
           </div>
 
-          {/* Resultados Detallados */}
           {renderDetailedResults()}
         </main>
       </div>
@@ -404,28 +560,90 @@ const AnalysisView = ({
 
         <div className="max-w-4xl mx-auto">
           <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-3xl p-8 border-2 border-purple-500/30 shadow-2xl">
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              maxLength={isBatchMode ? 5000 : 500}
-              placeholder={isBatchMode ? "Ingresa múltiples textos (uno por línea)..." : "Escribe un texto para analizar..."}
-              className="w-full h-56 bg-[#1a0b2e]/50 border-2 border-purple-500/30 rounded-2xl p-6 text-white focus:ring-2 focus:ring-purple-400 outline-none resize-none text-lg transition-all"
-            />
+            {isBatchMode ? (
+              <div className="space-y-6">
+                {!csvFile ? (
+                  <div className="border-2 border-dashed border-purple-500/30 rounded-2xl p-12 text-center hover:border-purple-500/50 transition-all">
+                    <Upload className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold text-white mb-2">Selecciona un archivo CSV</h3>
+                    <p className="text-purple-300 mb-6">El archivo debe tener una columna 'texto' con los comentarios para analizar</p>
+                    <label className="inline-block px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold rounded-xl cursor-pointer transition-all shadow-xl">
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      Seleccionar archivo
+                    </label>
+                    <p className="text-sm text-purple-400 mt-4">
+                      <span className="font-bold">Formato:</span> archivo.csv con columna "texto" • <span className="font-bold">Máximo:</span> 500 filas
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-[#1a0b2e]/50 border-2 border-purple-500/30 rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-8 h-8 text-purple-400" />
+                        <div>
+                          <p className="text-white font-bold text-lg">{csvFile.name}</p>
+                          <p className="text-purple-300 text-sm">{csvTexts.length} textos encontrados</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleClearFile}
+                        className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    {/* Previsualización de textos */}
+                    <div className="bg-purple-900/20 rounded-lg p-4 max-h-48 overflow-y-auto">
+                      <p className="text-purple-200 text-sm font-mono">
+                        {csvTexts.slice(0, 5).map((t, i) => (
+                          <span key={i} className="block mb-1">• {t.substring(0, 80)}{t.length > 80 ? '...' : ''}</span>
+                        ))}
+                        {csvTexts.length > 5 && (
+                          <span className="block text-purple-400 font-bold mt-2">... y {csvTexts.length - 5} más</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {csvError && (
+                  <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300">
+                    <AlertCircle className="w-5 h-5" /> {csvError}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative mb-6">
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  maxLength={500}
+                  placeholder="Escribe aquí..."
+                  className="w-full h-56 bg-[#1a0b2e]/50 border-2 border-purple-500/30 rounded-xl p-6 text-white placeholder-purple-300/60 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none transition-all text-lg"
+                />
+              </div>
+            )}
+
             {errorMessage && (
-              <div className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300">
+              <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300">
                 <AlertCircle className="w-5 h-5" /> {errorMessage}
               </div>
             )}
             <button
               onClick={analyzeSentiment}
-              disabled={!text.trim() || analyzing}
-              className="w-full mt-6 bg-gradient-to-r from-pink-500 to-purple-600 py-5 rounded-2xl text-white font-bold text-xl hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50"
+              disabled={(!text.trim() && !csvFile) || analyzing}
+              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-5 rounded-xl flex items-center justify-center gap-3 transition-all text-lg shadow-xl shadow-purple-500/20"
             >
-              {analyzing ? 'Procesando...' : 'Analizar Texto'}
+              <Send className="w-6 h-6" />
+              {analyzing ? 'Analizando...' : 'Analizar ahora'}
             </button>
           </div>
 
-          {/* Resultados Detallados */}
           {renderDetailedResults()}
         </div>
       </main>

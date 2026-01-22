@@ -31,9 +31,8 @@ const AppContent = () => {
     setErrorMessage('');
   }, [location.pathname]);
 
-// ... código anterior sin cambios ...
-
   const analyzeSentiment = async () => {
+    // Si no hay texto, no hacemos nada
     if (!text.trim()) return;
     
     setAnalyzing(true);
@@ -43,19 +42,25 @@ const AppContent = () => {
     
     try {
       if (isBatchMode) {
+        // Convertimos el texto (que viene del CSV con saltos de línea) en un array
         const comentarios = text.split('\n').filter(t => t.trim());
+
+        if (comentarios.length === 0) {
+           setErrorMessage('No hay textos válidos para analizar.');
+           setAnalyzing(false);
+           return;
+        }
         
         // ✅ SOLO para usuarios autenticados NO DEMO
         if (user && !isDemo && user.token) {
           const result = await sentimentService.analyzeAndSave(comentarios, user.token);
           
-          // ✅ USAR COMENTARIOS INDIVIDUALES DEL BACKEND CON CONFIANZA
           setResults({
             isBatch: true,
             totalAnalyzed: result.total,
             sessionSaved: true,
             sessionId: result.sessionId,
-            items: result.comentarios, // ✅ Ya tiene { text, sentiment, score }
+            items: result.comentarios, 
             stats: {
               avgScore: result.avgScore,
               positivos: result.positivos,
@@ -64,23 +69,24 @@ const AppContent = () => {
             }
           });
         } else {
-          // ✅ MODO DEMO - SIN CAMBIOS
+          // ✅ MODO DEMO
+          // Para demo, enviamos el texto completo para que el servicio simule el batch
           const result = await sentimentService.analyzeBatch(text);
           setResults(result);
         }
       } else {
+        // Análisis Simple
         const result = await sentimentService.analyzeSingle(text);
         setResults(result);
       }
     } catch (error) {
+      console.error(error);
       setErrorMessage(error.message || 'Error al analizar el texto');
       setResults(null);
     } finally {
       setAnalyzing(false);
     }
   };
-
-// ... resto del código sin cambios ...
 
   const getSentimentColor = (sentiment) => {
     const normalizedSentiment = sentiment?.toLowerCase().trim();
@@ -98,14 +104,17 @@ const AppContent = () => {
     if (results.stats) {
       const { positivos, negativos, neutrales } = results.stats;
       const total = positivos + negativos + neutrales;
+      // Evitar división por cero
+      const safeTotal = total === 0 ? 1 : total;
       
       return [
-        { name: 'Positivo', value: positivos, color: '#10b981', percentage: ((positivos / total) * 100).toFixed(1) },
-        { name: 'Negativo', value: negativos, color: '#ef4444', percentage: ((negativos / total) * 100).toFixed(1) },
-        { name: 'Neutral', value: neutrales, color: '#f59e0b', percentage: ((neutrales / total) * 100).toFixed(1) }
+        { name: 'Positivo', value: positivos, color: '#10b981', percentage: ((positivos / safeTotal) * 100).toFixed(1) },
+        { name: 'Negativo', value: negativos, color: '#ef4444', percentage: ((negativos / safeTotal) * 100).toFixed(1) },
+        { name: 'Neutral', value: neutrales, color: '#f59e0b', percentage: ((neutrales / safeTotal) * 100).toFixed(1) }
       ];
     }
     
+    // Fallback si no hay stats precalculados (ej. Demo)
     const items = results.items || [];
     if (items.length === 0) return null;
     
@@ -119,11 +128,12 @@ const AppContent = () => {
     });
     
     const total = items.length;
+    const safeTotal = total === 0 ? 1 : total;
     
     return [
-      { name: 'Positivo', value: counts.positivo, color: '#10b981', percentage: ((counts.positivo / total) * 100).toFixed(1) },
-      { name: 'Negativo', value: counts.negativo, color: '#ef4444', percentage: ((counts.negativo / total) * 100).toFixed(1) },
-      { name: 'Neutral', value: counts.neutral, color: '#f59e0b', percentage: ((counts.neutral / total) * 100).toFixed(1) }
+      { name: 'Positivo', value: counts.positivo, color: '#10b981', percentage: ((counts.positivo / safeTotal) * 100).toFixed(1) },
+      { name: 'Negativo', value: counts.negativo, color: '#ef4444', percentage: ((counts.negativo / safeTotal) * 100).toFixed(1) },
+      { name: 'Neutral', value: counts.neutral, color: '#f59e0b', percentage: ((counts.neutral / safeTotal) * 100).toFixed(1) }
     ];
   };
 
@@ -171,6 +181,24 @@ const AppContent = () => {
   // Wrapper para setCurrentView que usa navigate
   const setCurrentView = (view) => {
     navigate(`/${view}`);
+  };
+
+  // Props comunes para AnalysisView
+  const analysisProps = {
+    setCurrentView,
+    user,
+    isDemo,
+    handleLogout,
+    handleBackToLanding,
+    text,
+    setText,
+    analyzing,
+    analyzeSentiment,
+    results,
+    setResults,
+    getStatistics,
+    getSentimentColor,
+    errorMessage
   };
 
   return (
@@ -252,21 +280,8 @@ const AppContent = () => {
           user && !isDemo ? (
             <AnalysisView
               currentView="analysis-simple"
-              setCurrentView={setCurrentView}
-              user={user}
-              isDemo={isDemo}
-              handleLogout={handleLogout}
-              handleBackToLanding={handleBackToLanding}
               isBatchMode={false}
-              text={text}
-              setText={setText}
-              analyzing={analyzing}
-              analyzeSentiment={analyzeSentiment}
-              results={results}
-              setResults={setResults}
-              getStatistics={getStatistics}
-              getSentimentColor={getSentimentColor}
-              errorMessage={errorMessage}
+              {...analysisProps}
             />
           ) : (
             <Navigate to="/" replace />
@@ -281,21 +296,8 @@ const AppContent = () => {
           user && !isDemo ? (
             <AnalysisView
               currentView="analysis-batch"
-              setCurrentView={setCurrentView}
-              user={user}
-              isDemo={isDemo}
-              handleLogout={handleLogout}
-              handleBackToLanding={handleBackToLanding}
               isBatchMode={true}
-              text={text}
-              setText={setText}
-              analyzing={analyzing}
-              analyzeSentiment={analyzeSentiment}
-              results={results}
-              setResults={setResults}
-              getStatistics={getStatistics}
-              getSentimentColor={getSentimentColor}
-              errorMessage={errorMessage}
+              {...analysisProps}
             />
           ) : (
             <Navigate to="/" replace />
@@ -310,21 +312,8 @@ const AppContent = () => {
           user && isDemo ? (
             <AnalysisView
               currentView="demo-simple"
-              setCurrentView={setCurrentView}
-              user={user}
-              isDemo={isDemo}
-              handleLogout={handleLogout}
-              handleBackToLanding={handleBackToLanding}
               isBatchMode={false}
-              text={text}
-              setText={setText}
-              analyzing={analyzing}
-              analyzeSentiment={analyzeSentiment}
-              results={results}
-              setResults={setResults}
-              getStatistics={getStatistics}
-              getSentimentColor={getSentimentColor}
-              errorMessage={errorMessage}
+              {...analysisProps}
             />
           ) : (
             <Navigate to="/" replace />
@@ -339,21 +328,8 @@ const AppContent = () => {
           user && isDemo ? (
             <AnalysisView
               currentView="demo-batch"
-              setCurrentView={setCurrentView}
-              user={user}
-              isDemo={isDemo}
-              handleLogout={handleLogout}
-              handleBackToLanding={handleBackToLanding}
               isBatchMode={true}
-              text={text}
-              setText={setText}
-              analyzing={analyzing}
-              analyzeSentiment={analyzeSentiment}
-              results={results}
-              setResults={setResults}
-              getStatistics={getStatistics}
-              getSentimentColor={getSentimentColor}
-              errorMessage={errorMessage}
+              {...analysisProps}
             />
           ) : (
             <Navigate to="/" replace />
@@ -387,7 +363,6 @@ const AppContent = () => {
   );
 };
 
-// Componente wrapper con BrowserRouter
 const App = () => {
   return (
     <BrowserRouter>
