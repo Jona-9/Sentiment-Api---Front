@@ -1,5 +1,5 @@
-// src/App.jsx
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Landing from './views/Landing';
 import Auth from './views/Auth';
 import DashboardView from './views/DashboardView';
@@ -8,8 +8,11 @@ import HistoryView from './views/HistoryView';
 import DemoSelectionView from './views/DemoSelectionView';
 import { sentimentService } from './services/sentimentService';
 
-const App = () => {
-  const [currentView, setCurrentView] = useState('landing');
+// Componente principal con la lógica
+const AppContent = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const [user, setUser] = useState(null);
   const [isDemo, setIsDemo] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -21,12 +24,12 @@ const App = () => {
   
   const [historyData, setHistoryData] = useState([]);
 
-  // Limpiar texto y resultados al cambiar de modo
+  // Limpiar estado cuando cambia la ruta
   useEffect(() => {
     setText('');
     setResults(null);
     setErrorMessage('');
-  }, [currentView]);
+  }, [location.pathname]);
 
   const analyzeSentiment = async () => {
     if (!text.trim()) return;
@@ -34,17 +37,15 @@ const App = () => {
     setAnalyzing(true);
     setErrorMessage('');
     
-    const isBatchMode = currentView === 'analysis-batch' || currentView === 'demo-batch';
+    const isBatchMode = location.pathname === '/analysis-batch' || location.pathname === '/demo-batch';
     
     try {
       if (isBatchMode) {
         const comentarios = text.split('\n').filter(t => t.trim());
         
-        // ✅ Si el usuario está registrado, guardar en BD
         if (user && !isDemo && user.token) {
           const result = await sentimentService.analyzeAndSave(comentarios, user.token);
           
-          // Convertir la respuesta del backend al formato del frontend
           setResults({
             isBatch: true,
             totalAnalyzed: result.total,
@@ -52,7 +53,7 @@ const App = () => {
             sessionId: result.sessionId,
             items: comentarios.map((comentario) => ({
               text: comentario,
-              sentiment: 'procesado', // El backend ya procesó todo
+              sentiment: 'procesado',
               score: result.avgScore,
             })),
             stats: {
@@ -63,7 +64,6 @@ const App = () => {
             }
           });
         } else {
-          // Modo demo: solo analizar sin guardar
           const result = await sentimentService.analyzeBatch(text);
           setResults(result);
         }
@@ -92,7 +92,6 @@ const App = () => {
   const getStatistics = () => {
     if (!results?.isBatch) return null;
     
-    // Si ya tenemos estadísticas del backend, usarlas
     if (results.stats) {
       const { positivos, negativos, neutrales } = results.stats;
       const total = positivos + negativos + neutrales;
@@ -104,7 +103,6 @@ const App = () => {
       ];
     }
     
-    // Calcular desde items (modo demo)
     const items = results.items || [];
     if (items.length === 0) return null;
     
@@ -131,22 +129,22 @@ const App = () => {
     setUser({
       id: userData.id,
       email: userData.correo,
-      name: `${userData.nombre} ${userData.apellido}`,
-      token: userData.token, // ✅ GUARDAR TOKEN
+      name: userData.nombreCompleto || `${userData.nombre} ${userData.apellido}`,
+      token: userData.token,
     });
     setIsDemo(false);
-    setCurrentView('dashboard');
+    navigate('/dashboard');
   };
 
   const handleRegister = (e, userData) => {
     e.preventDefault();
-    setCurrentView('login');
+    navigate('/login');
   };
 
   const handleLogout = () => {
     setUser(null);
     setIsDemo(false);
-    setCurrentView('landing');
+    navigate('/');
     setText('');
     setResults(null);
     setErrorMessage('');
@@ -155,119 +153,244 @@ const App = () => {
   const handleDemoStart = () => {
     setUser({ email: 'demo@sentimentapi.com', name: 'Demo' });
     setIsDemo(true);
-    setCurrentView('demo-selection');
+    navigate('/demo-selection');
   };
 
   const handleBackToLanding = () => {
     setUser(null);
     setIsDemo(false);
-    setCurrentView('landing');
+    navigate('/');
     setText('');
     setResults(null);
     setErrorMessage('');
   };
 
-  // Landing Page
-  if (currentView === 'landing') {
-    return (
-      <Landing 
-        setCurrentView={setCurrentView} 
-        handleDemoStart={handleDemoStart}
-        showMobileMenu={showMobileMenu} 
-        setShowMobileMenu={setShowMobileMenu} 
-      />
-    );
-  }
+  // Wrapper para setCurrentView que usa navigate
+  const setCurrentView = (view) => {
+    navigate(`/${view}`);
+  };
 
-  // Login Page
-  if (currentView === 'login') {
-    return (
-      <Auth 
-        type="login" 
-        handleSubmit={handleLogin} 
-        setCurrentView={setCurrentView} 
+  return (
+    <Routes>
+      {/* Landing Page */}
+      <Route 
+        path="/" 
+        element={
+          <Landing 
+            setCurrentView={setCurrentView}
+            handleDemoStart={handleDemoStart}
+            showMobileMenu={showMobileMenu} 
+            setShowMobileMenu={setShowMobileMenu} 
+          />
+        } 
       />
-    );
-  }
 
-  // Register Page
-  if (currentView === 'register') {
-    return (
-      <Auth 
-        type="register" 
-        handleSubmit={handleRegister} 
-        setCurrentView={setCurrentView} 
+      {/* Login */}
+      <Route 
+        path="/login" 
+        element={
+          <Auth 
+            type="login" 
+            handleSubmit={handleLogin} 
+            setCurrentView={setCurrentView} 
+          />
+        } 
       />
-    );
-  }
 
-  // Demo Selection View
-  if (currentView === 'demo-selection' && user && isDemo) {
-    return (
-      <DemoSelectionView
-        setCurrentView={setCurrentView}
-        handleBackToLanding={handleBackToLanding}
+      {/* Register */}
+      <Route 
+        path="/register" 
+        element={
+          <Auth 
+            type="register" 
+            handleSubmit={handleRegister} 
+            setCurrentView={setCurrentView} 
+          />
+        } 
       />
-    );
-  }
 
-  // Dashboard (Main Menu)
-  if (currentView === 'dashboard' && user && !isDemo) {
-    return (
-      <DashboardView
-        currentView={currentView}
-        setCurrentView={setCurrentView}
-        user={user}
-        isDemo={isDemo}
-        handleLogout={handleLogout}
+      {/* Demo Selection */}
+      <Route 
+        path="/demo-selection" 
+        element={
+          user && isDemo ? (
+            <DemoSelectionView
+              setCurrentView={setCurrentView}
+              handleBackToLanding={handleBackToLanding}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
       />
-    );
-  }
 
-  // Analysis Views (Simple & Batch)
-  if ((currentView === 'analysis-simple' || currentView === 'analysis-batch' || 
-       currentView === 'demo-simple' || currentView === 'demo-batch') && user) {
-    
-    const isBatchMode = currentView === 'analysis-batch' || currentView === 'demo-batch';
-    
-    return (
-      <AnalysisView
-        currentView={currentView}
-        setCurrentView={setCurrentView}
-        user={user}
-        isDemo={isDemo}
-        handleLogout={handleLogout}
-        handleBackToLanding={handleBackToLanding}
-        isBatchMode={isBatchMode}
-        text={text}
-        setText={setText}
-        analyzing={analyzing}
-        analyzeSentiment={analyzeSentiment}
-        results={results}
-        setResults={setResults}
-        getStatistics={getStatistics}
-        getSentimentColor={getSentimentColor}
-        errorMessage={errorMessage}
+      {/* Dashboard */}
+      <Route 
+        path="/dashboard" 
+        element={
+          user && !isDemo ? (
+            <DashboardView
+              currentView="dashboard"
+              setCurrentView={setCurrentView}
+              user={user}
+              isDemo={isDemo}
+              handleLogout={handleLogout}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
       />
-    );
-  }
 
-  // History View
-  if (currentView === 'history' && user && !isDemo) {
-    return (
-      <HistoryView
-        currentView={currentView}
-        setCurrentView={setCurrentView}
-        user={user}
-        handleLogout={handleLogout}
-        historyData={historyData}
-        getSentimentColor={getSentimentColor}
-        userToken={user.token} // ✅ PASAR TOKEN
+      {/* Analysis Simple */}
+      <Route 
+        path="/analysis-simple" 
+        element={
+          user && !isDemo ? (
+            <AnalysisView
+              currentView="analysis-simple"
+              setCurrentView={setCurrentView}
+              user={user}
+              isDemo={isDemo}
+              handleLogout={handleLogout}
+              handleBackToLanding={handleBackToLanding}
+              isBatchMode={false}
+              text={text}
+              setText={setText}
+              analyzing={analyzing}
+              analyzeSentiment={analyzeSentiment}
+              results={results}
+              setResults={setResults}
+              getStatistics={getStatistics}
+              getSentimentColor={getSentimentColor}
+              errorMessage={errorMessage}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
       />
-    );
-  }
 
-  return null;
+      {/* Analysis Batch */}
+      <Route 
+        path="/analysis-batch" 
+        element={
+          user && !isDemo ? (
+            <AnalysisView
+              currentView="analysis-batch"
+              setCurrentView={setCurrentView}
+              user={user}
+              isDemo={isDemo}
+              handleLogout={handleLogout}
+              handleBackToLanding={handleBackToLanding}
+              isBatchMode={true}
+              text={text}
+              setText={setText}
+              analyzing={analyzing}
+              analyzeSentiment={analyzeSentiment}
+              results={results}
+              setResults={setResults}
+              getStatistics={getStatistics}
+              getSentimentColor={getSentimentColor}
+              errorMessage={errorMessage}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
+      />
+
+      {/* Demo Simple */}
+      <Route 
+        path="/demo-simple" 
+        element={
+          user && isDemo ? (
+            <AnalysisView
+              currentView="demo-simple"
+              setCurrentView={setCurrentView}
+              user={user}
+              isDemo={isDemo}
+              handleLogout={handleLogout}
+              handleBackToLanding={handleBackToLanding}
+              isBatchMode={false}
+              text={text}
+              setText={setText}
+              analyzing={analyzing}
+              analyzeSentiment={analyzeSentiment}
+              results={results}
+              setResults={setResults}
+              getStatistics={getStatistics}
+              getSentimentColor={getSentimentColor}
+              errorMessage={errorMessage}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
+      />
+
+      {/* Demo Batch */}
+      <Route 
+        path="/demo-batch" 
+        element={
+          user && isDemo ? (
+            <AnalysisView
+              currentView="demo-batch"
+              setCurrentView={setCurrentView}
+              user={user}
+              isDemo={isDemo}
+              handleLogout={handleLogout}
+              handleBackToLanding={handleBackToLanding}
+              isBatchMode={true}
+              text={text}
+              setText={setText}
+              analyzing={analyzing}
+              analyzeSentiment={analyzeSentiment}
+              results={results}
+              setResults={setResults}
+              getStatistics={getStatistics}
+              getSentimentColor={getSentimentColor}
+              errorMessage={errorMessage}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
+      />
+
+      {/* History */}
+      <Route 
+        path="/history" 
+        element={
+          user && !isDemo ? (
+            <HistoryView
+              currentView="history"
+              setCurrentView={setCurrentView}
+              user={user}
+              handleLogout={handleLogout}
+              historyData={historyData}
+              getSentimentColor={getSentimentColor}
+              userToken={user.token}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
+      />
+
+      {/* Ruta por defecto */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
+// Componente wrapper con BrowserRouter
+const App = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  );
 };
 
 export default App;

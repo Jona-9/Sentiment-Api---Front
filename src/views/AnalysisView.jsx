@@ -214,30 +214,32 @@ const AnalysisView = ({
           </div>
         </div>
 
-        {/* Gráficos de Distribución */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Distribución de Sentimientos (Gráfico de Pastel) */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-            <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-purple-400" />
-              </div>
-              Distribución de Sentimientos
-            </h4>
-            {renderPieChart()}
-          </div>
+        {/* 🔥 GRÁFICOS - OCULTOS SOLO EN MODO DEMO */}
+        {!isDemo && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Distribución de Sentimientos (Gráfico de Pastel) */}
+            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
+              <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-purple-400" />
+                </div>
+                Distribución de Sentimientos
+              </h4>
+              {renderPieChart()}
+            </div>
 
-          {/* Distribución de Puntuaciones (Gráfico de Barras) */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-            <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
-              <div className="w-10 h-10 bg-cyan-500/20 rounded-xl flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-cyan-400" />
-              </div>
-              Distribución de Puntuaciones
-            </h4>
-            {renderScoreDistribution()}
+            {/* Distribución de Puntuaciones (Gráfico de Barras) */}
+            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
+              <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+                <div className="w-10 h-10 bg-cyan-500/20 rounded-xl flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-cyan-400" />
+                </div>
+                Distribución de Puntuaciones
+              </h4>
+              {renderScoreDistribution()}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Lista Detallada de Resultados */}
         <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">

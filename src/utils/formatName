@@ -1,0 +1,21 @@
+// src/utils/formatName.js
+
+/**
+ * Extrae el primer nombre y primer apellido de un usuario
+ * @param {string} nombre - Nombre completo del usuario (ej: "Juan Carlos")
+ * @param {string} apellido - Apellido completo del usuario (ej: "Pérez García")
+ * @returns {string} Nombre y apellido formateados (ej: "Juan Pérez")
+ */
+export const formatUserName = (nombre, apellido) => {
+  // Si no hay nombre o apellido, retornar cadena vacía
+  if (!nombre && !apellido) return '';
+  
+  // Extraer primer nombre (antes del primer espacio)
+  const primerNombre = nombre ? nombre.trim().split(' ')[0] : '';
+  
+  // Extraer primer apellido (antes del primer espacio)
+  const primerApellido = apellido ? apellido.trim().split(' ')[0] : '';
+  
+  // Concatenar y retornar
+  return `${primerNombre} ${primerApellido}`.trim();
+};

@@ -1,5 +1,6 @@
 // src/services/authService.js
 import { API_ENDPOINTS } from '../config/api';
+import { formatUserName } from '../utils/formatName'; // ✅ IMPORTAR
 
 export const authService = {
   /**
@@ -64,14 +65,18 @@ export const authService = {
 
       const userData = await response.json();
       
+      // ✅ FORMATEAR NOMBRE: Solo primer nombre y apellido
+      const nombreFormateado = formatUserName(userData.nombre, userData.apellido);
+      
       return {
         success: true,
         user: {
           id: userData.id,
           correo: userData.correo,
-          nombre: userData.nombre,
-          apellido: userData.apellido,
-          token: userData.token, // ✅ TOKEN JWT
+          nombre: userData.nombre, // Nombre completo original
+          apellido: userData.apellido, // Apellido completo original
+          nombreCompleto: nombreFormateado, // ✅ NUEVO: Nombre formateado
+          token: userData.token,
         }
       };
     } catch (error) {
