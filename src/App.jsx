@@ -8,12 +8,25 @@ import HistoryView from './views/HistoryView';
 import DemoSelectionView from './views/DemoSelectionView';
 import { sentimentService } from './services/sentimentService';
 
+// 🔥 CONSTANTE PARA LOCALSTORAGE
+const STORAGE_KEY = 'sentimentapi_user';
+
 // Componente principal con la lógica
 const AppContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [user, setUser] = useState(null);
+  // 🔥 INICIALIZAR USER DESDE LOCALSTORAGE
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem(STORAGE_KEY);
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (error) {
+      console.error('Error al cargar usuario desde localStorage:', error);
+      return null;
+    }
+  });
+  
   const [isDemo, setIsDemo] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   
@@ -24,6 +37,19 @@ const AppContent = () => {
   
   const [historyData, setHistoryData] = useState([]);
 
+  // 🔥 GUARDAR USER EN LOCALSTORAGE CADA VEZ QUE CAMBIE
+  useEffect(() => {
+    if (user && !isDemo) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      } catch (error) {
+        console.error('Error al guardar usuario en localStorage:', error);
+      }
+    } else if (!user) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [user, isDemo]);
+
   // Limpiar estado cuando cambia la ruta
   useEffect(() => {
     setText('');
@@ -32,7 +58,6 @@ const AppContent = () => {
   }, [location.pathname]);
 
   const analyzeSentiment = async () => {
-    // Si no hay texto, no hacemos nada
     if (!text.trim()) return;
     
     setAnalyzing(true);
@@ -42,7 +67,6 @@ const AppContent = () => {
     
     try {
       if (isBatchMode) {
-        // Convertimos el texto (que viene del CSV con saltos de línea) en un array
         const comentarios = text.split('\n').filter(t => t.trim());
 
         if (comentarios.length === 0) {
@@ -51,8 +75,9 @@ const AppContent = () => {
            return;
         }
         
-        // ✅ SOLO para usuarios autenticados NO DEMO
+        // ✅ VERIFICAR TOKEN ANTES DE ANALIZAR
         if (user && !isDemo && user.token) {
+          console.log('🔑 Analizando con token:', user.token);
           const result = await sentimentService.analyzeAndSave(comentarios, user.token);
           
           setResults({
@@ -69,8 +94,7 @@ const AppContent = () => {
             }
           });
         } else {
-          // ✅ MODO DEMO
-          // Para demo, enviamos el texto completo para que el servicio simule el batch
+          // MODO DEMO
           const result = await sentimentService.analyzeBatch(text);
           setResults(result);
         }
@@ -80,7 +104,7 @@ const AppContent = () => {
         setResults(result);
       }
     } catch (error) {
-      console.error(error);
+      console.error('❌ Error en análisis:', error);
       setErrorMessage(error.message || 'Error al analizar el texto');
       setResults(null);
     } finally {
@@ -104,7 +128,6 @@ const AppContent = () => {
     if (results.stats) {
       const { positivos, negativos, neutrales } = results.stats;
       const total = positivos + negativos + neutrales;
-      // Evitar división por cero
       const safeTotal = total === 0 ? 1 : total;
       
       return [
@@ -114,7 +137,6 @@ const AppContent = () => {
       ];
     }
     
-    // Fallback si no hay stats precalculados (ej. Demo)
     const items = results.items || [];
     if (items.length === 0) return null;
     
@@ -139,12 +161,16 @@ const AppContent = () => {
 
   const handleLogin = (e, userData) => {
     e.preventDefault();
-    setUser({
+    console.log('✅ Login exitoso, token recibido:', userData.token);
+    
+    const newUser = {
       id: userData.id,
       email: userData.correo,
       name: userData.nombreCompleto || `${userData.nombre} ${userData.apellido}`,
       token: userData.token,
-    });
+    };
+    
+    setUser(newUser);
     setIsDemo(false);
     navigate('/dashboard');
   };
@@ -155,8 +181,10 @@ const AppContent = () => {
   };
 
   const handleLogout = () => {
+    console.log('🚪 Cerrando sesión...');
     setUser(null);
     setIsDemo(false);
+    localStorage.removeItem(STORAGE_KEY);
     navigate('/');
     setText('');
     setResults(null);
@@ -172,18 +200,17 @@ const AppContent = () => {
   const handleBackToLanding = () => {
     setUser(null);
     setIsDemo(false);
+    localStorage.removeItem(STORAGE_KEY);
     navigate('/');
     setText('');
     setResults(null);
     setErrorMessage('');
   };
 
-  // Wrapper para setCurrentView que usa navigate
   const setCurrentView = (view) => {
     navigate(`/${view}`);
   };
 
-  // Props comunes para AnalysisView
   const analysisProps = {
     setCurrentView,
     user,
@@ -203,7 +230,6 @@ const AppContent = () => {
 
   return (
     <Routes>
-      {/* Landing Page */}
       <Route 
         path="/" 
         element={
@@ -216,7 +242,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Login */}
       <Route 
         path="/login" 
         element={
@@ -228,7 +253,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Register */}
       <Route 
         path="/register" 
         element={
@@ -240,7 +264,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Demo Selection */}
       <Route 
         path="/demo-selection" 
         element={
@@ -255,7 +278,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Dashboard */}
       <Route 
         path="/dashboard" 
         element={
@@ -273,7 +295,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Analysis Simple */}
       <Route 
         path="/analysis-simple" 
         element={
@@ -289,7 +310,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Analysis Batch */}
       <Route 
         path="/analysis-batch" 
         element={
@@ -305,7 +325,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Demo Simple */}
       <Route 
         path="/demo-simple" 
         element={
@@ -321,7 +340,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Demo Batch */}
       <Route 
         path="/demo-batch" 
         element={
@@ -337,7 +355,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* History */}
       <Route 
         path="/history" 
         element={
@@ -349,7 +366,6 @@ const AppContent = () => {
               handleLogout={handleLogout}
               historyData={historyData}
               getSentimentColor={getSentimentColor}
-              userToken={user.token}
             />
           ) : (
             <Navigate to="/" replace />
@@ -357,7 +373,6 @@ const AppContent = () => {
         } 
       />
 
-      {/* Ruta por defecto */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
