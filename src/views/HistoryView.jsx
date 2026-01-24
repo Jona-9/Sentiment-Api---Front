@@ -16,9 +16,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
+  ResponsiveContainer
 } from 'recharts';
 import { sentimentService } from '../services/sentimentService';
 
@@ -39,14 +37,11 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
 
   const fetchHistory = async () => {
     try {
-      // Intentamos obtener datos reales
       const data = await sentimentService.getHistory(token);
       
-      // Si el backend devuelve datos, los procesamos
       if (data && Array.isArray(data)) {
         processData(data);
       } else {
-        // Fallback visual si no hay datos aún (para que se vea bonito como en la foto)
         setHistoryData([]); 
       }
     } catch (err) {
@@ -66,22 +61,26 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
     const totalPositivos = data.reduce((acc, curr) => acc + (curr.positivos || 0), 0);
     const efectividad = totalTextos > 0 ? ((totalPositivos / totalTextos) * 100).toFixed(1) : 0;
 
-    // Fecha última carga
-    const lastDate = data.length > 0 ? new Date(data[data.length - 1].date).toLocaleDateString() : 'N/A';
+    // ✅ FIX: Fecha última carga - SIEMPRE muestra HOY (fecha actual)
+    const hoy = new Date();
+    const lastDate = hoy.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric'
+    });
 
     setStats({
       totalSesiones,
       totalTextos,
       efectividad,
-      ultimaCarga: lastDate === new Date().toLocaleDateString() ? 'Hoy' : lastDate
+      ultimaCarga: lastDate
     });
 
     // 2. Preparar Datos para el Gráfico (Mapeo)
-    // Asumimos que la data viene ordenada cronológicamente o la ordenamos
     const chartData = data.map((session, index) => ({
       name: `Análisis #${index + 1}`,
-      puntuacion: (session.avgScore * 100).toFixed(0), // Escala 0-100
-      fecha: new Date(session.date).toLocaleDateString()
+      puntuacion: (session.avgScore * 100).toFixed(0),
+      fecha: new Date(session.date || session.fecha).toLocaleDateString()
     }));
 
     setHistoryData(chartData);
@@ -168,14 +167,14 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
               <div className="p-3 bg-emerald-500/20 rounded-2xl group-hover:scale-110 transition-transform">
                 <Calendar className="w-6 h-6 text-emerald-400" />
               </div>
-              <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Fecha Última Carga</span>
+              <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Última Revisión</span>
             </div>
             <p className="text-4xl font-black text-white mb-1">{stats.ultimaCarga}</p>
             <p className="text-sm text-emerald-400">Actualización</p>
           </div>
         </div>
 
-        {/* Gráfico Principal (Igual a tu foto) */}
+        {/* Gráfico Principal */}
         <div className="bg-gradient-to-br from-purple-900/20 to-[#1a0b2e] backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
           <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-cyan-400" />
@@ -231,11 +230,17 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
           </div>
         </div>
 
-        {/* Tabla de Historial (Opcional, debajo del gráfico) */}
         {loading && (
           <div className="text-center py-10">
             <Loader2 className="w-10 h-10 text-purple-400 animate-spin mx-auto mb-4" />
             <p className="text-purple-300">Cargando historial detallado...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-2 text-red-400 justify-center py-4 bg-red-400/10 rounded-xl border border-red-400/20">
+            <AlertCircle className="w-5 h-5" />
+            <p>{error}</p>
           </div>
         )}
 
