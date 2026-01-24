@@ -321,7 +321,7 @@ Este proyecto fue desarrollado como parte de la **Hackatón ONE H12-25-L** por e
 
 ## 📄 Licencia
 
-Este proyecto es parte de un trabajo académico de la Hackatón ONE 2025.
+Este proyecto es parte de un trabajo académico de la Hackatón ONE 2026.
 
 ---
 
