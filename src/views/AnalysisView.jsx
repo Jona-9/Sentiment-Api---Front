@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, TrendingUp, AlertCircle, Home, History, LogOut, 
   BarChart3, FileText, ArrowLeft, Upload, X, Package, CheckCircle2, 
-  Grid3x3, ChevronRight, Plus, Loader2, Check 
+  Grid3x3, ChevronRight, Plus, Loader2, Check, Clock 
 } from 'lucide-react';
 
 const AnalysisView = ({
@@ -14,7 +14,6 @@ const AnalysisView = ({
 }) => {
   
   // ==================== LÓGICA DEL ASISTENTE (WIZARD) ====================
-  // Si es Batch pero es DEMO, saltamos directo al paso 3 (Input manual)
   const [step, setStep] = useState((isBatchMode && !isDemo) ? 1 : 3);
   
   const [categories, setCategories] = useState([]);
@@ -129,7 +128,6 @@ const AnalysisView = ({
   const handleClearFile = () => { setCsvFile(null); setCsvTexts([]); setCsvError(''); setText(''); };
 
   // ==================== FUNCIONES DE ANÁLISIS POR PRODUCTO ====================
-  
   const calculateProductStats = () => {
     if (results?.productosDetectados && results.productosDetectados.length > 0) {
       return results.productosDetectados.map(p => {
@@ -155,7 +153,6 @@ const AnalysisView = ({
     if (!results?.items) return [];
 
     const statsMap = {};
-    
     results.items.forEach(item => {
       const prodName = item.productoAsociado || 
                        item.nombreProducto || 
@@ -199,7 +196,6 @@ const AnalysisView = ({
   const renderProductBreakdownList = (sentimentType) => {
     const productStats = calculateProductStats();
     const filtered = productStats.filter(p => p[sentimentType] > 0);
-    
     if (filtered.length === 0) return null;
 
     return (
@@ -221,7 +217,6 @@ const AnalysisView = ({
   const renderDetailedResults = () => {
     if (!results) return null;
     
-    // Análisis Simple (1 solo texto)
     if (!results.isBatch) {
       return (
         <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -252,9 +247,7 @@ const AnalysisView = ({
       );
     }
 
-    // Análisis Batch (Múltiple) - ESTADÍSTICAS SOLICITADAS
     const stats = getStatistics();
-    
     return (
       <div className="mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-cyan-500/30">
@@ -269,7 +262,6 @@ const AnalysisView = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* CARD POSITIVOS */}
             <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-400/30 p-6 rounded-2xl flex flex-col items-center">
                <div className="mb-2 w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400 font-bold text-xl">+</div>
                <p className="text-emerald-300 font-bold mb-1">POSITIVOS</p>
@@ -277,7 +269,6 @@ const AnalysisView = ({
                {renderProductBreakdownList('positivo')}
             </div>
 
-            {/* CARD NEUTRALES */}
             <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/10 border border-amber-400/30 p-6 rounded-2xl flex flex-col items-center">
                <div className="mb-2 w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center text-amber-400 font-bold text-xl">~</div>
                <p className="text-amber-300 font-bold mb-1">NEUTRALES</p>
@@ -285,7 +276,6 @@ const AnalysisView = ({
                {renderProductBreakdownList('neutral')}
             </div>
 
-            {/* CARD NEGATIVOS */}
             <div className="bg-gradient-to-br from-red-500/10 to-red-600/10 border border-red-400/30 p-6 rounded-2xl flex flex-col items-center">
                <div className="mb-2 w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center text-red-400 font-bold text-xl">-</div>
                <p className="text-red-300 font-bold mb-1">NEGATIVOS</p>
@@ -295,7 +285,6 @@ const AnalysisView = ({
           </div>
         </div>
 
-        {/* LISTA DE COMENTARIOS (SIN GRÁFICOS) */}
         <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">
           <h4 className="text-2xl font-black text-white mb-6">Detalle de Comentarios</h4>
           <div className="space-y-4">
@@ -322,7 +311,6 @@ const AnalysisView = ({
     );
   };
 
-  // ==================== RENDERIZADO PRINCIPAL ====================
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e]">
       <header className="bg-[#2d1b4e]/60 backdrop-blur-xl border-b border-purple-500/20 sticky top-0 z-50">
@@ -338,15 +326,43 @@ const AnalysisView = ({
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={() => setCurrentView('dashboard')} className="nav-button-custom flex items-center gap-2 px-5 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-xl border border-purple-500/30 transition-all">
-                <Home className="w-4 h-4" /> <span className="hidden sm:inline">Dashboard</span>
-              </button>
-              <button onClick={() => setCurrentView('history')} className="nav-button-custom flex items-center gap-2 px-5 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-xl border border-purple-500/30 transition-all">
-                <History className="w-4 h-4" /> <span className="hidden sm:inline">Historial</span>
-              </button>
-              <button onClick={handleLogout} className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-xl border border-red-500/30 transition-all">
-                <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Salir</span>
-              </button>
+              {isDemo ? (
+                <>
+                  <button 
+                    onClick={() => setCurrentView('demo-selection')} 
+                    className="flex items-center gap-2 px-5 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-xl border border-purple-500/30 transition-all"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">Volver</span>
+                  </button>
+                  <button 
+                    onClick={handleLogout} 
+                    className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-xl border border-red-500/30 transition-all"
+                  >
+                    <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Salir</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => setCurrentView('dashboard')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border transition-all ${currentView === 'dashboard' ? 'bg-purple-600 text-white border-purple-400' : 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border-purple-500/30'}`}
+                  >
+                    <Home className="w-4 h-4" /> <span className="hidden sm:inline">Dashboard</span>
+                  </button>
+                  <button 
+                    onClick={() => setCurrentView('history')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border transition-all ${currentView === 'history' ? 'bg-purple-600 text-white border-purple-400' : 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border-purple-500/30'}`}
+                  >
+                    <Clock className="w-4 h-4" /> <span className="hidden sm:inline">Historial</span>
+                  </button>
+                  <button 
+                    onClick={handleLogout} 
+                    className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-xl border border-red-500/30 transition-all"
+                  >
+                    <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Salir</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -437,8 +453,6 @@ const AnalysisView = ({
 
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-3xl p-8 border-2 border-purple-500/30 shadow-2xl">
-                    
-                    {/* EN MODO DEMO OJO: Solo Textarea */}
                     {(isBatchMode && !isDemo) ? (
                       <div className="space-y-6">
                         {!csvFile ? (
