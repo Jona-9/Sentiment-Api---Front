@@ -137,18 +137,25 @@ const AnalysisView = ({
     // 1. Si el backend nos devuelve el desglose ya hecho (lo ideal)
     if (results?.productosDetectados && results.productosDetectados.length > 0) {
       return results.productosDetectados.map(p => {
-        // Aseguramos que los nombres coincidan con la estructura del backend
-        const total = (p.conteoPositivos || 0) + (p.conteoNegativos || 0) + (p.conteoNeutrales || 0);
+        // 🔥 FIX: Múltiples variantes de nombres del backend
+        const nombreProducto = p.nombreProducto || p.producto || p.name || 'Desconocido';
+        
+        // 🔥 FIX: Múltiples variantes de contadores del backend
+        const positivos = p.conteoPositivos || p.positivosSesion || p.positivos || 0;
+        const negativos = p.conteoNegativos || p.negativosSesion || p.negativos || 0;
+        const neutrales = p.conteoNeutrales || p.neutralesSesion || p.neutrales || 0;
+        
+        const total = positivos + negativos + neutrales;
         const safeTotal = total || 1;
         
         return {
-          name: p.nombreProducto || p.producto || 'Desconocido', // Aquí tomamos el nombre
-          pctPositivo: parseFloat(((p.conteoPositivos / safeTotal) * 100).toFixed(1)),
-          pctNegativo: parseFloat(((p.conteoNegativos / safeTotal) * 100).toFixed(1)),
-          pctNeutral: parseFloat(((p.conteoNeutrales / safeTotal) * 100).toFixed(1)),
-          positivo: p.conteoPositivos || 0,
-          negativo: p.conteoNegativos || 0,
-          neutral: p.conteoNeutrales || 0
+          name: nombreProducto,
+          pctPositivo: parseFloat(((positivos / safeTotal) * 100).toFixed(1)),
+          pctNegativo: parseFloat(((negativos / safeTotal) * 100).toFixed(1)),
+          pctNeutral: parseFloat(((neutrales / safeTotal) * 100).toFixed(1)),
+          positivo: positivos,
+          negativo: negativos,
+          neutral: neutrales
         };
       });
     }
@@ -157,13 +164,20 @@ const AnalysisView = ({
     if (!results?.items) return [];
 
     const statsMap = {};
+    
     results.items.forEach(item => {
-      // Intentamos usar el nombre del producto asociado, si no existe, usamos "General"
-      const prodName = item.productoAsociado || 'General';
+      // 🔥 FIX: Múltiples fuentes posibles del nombre del producto
+      const prodName = item.productoAsociado || 
+                       item.nombreProducto || 
+                       item.producto || 
+                       (item.text && finalSelectedProducts.length > 0 
+                        ? detectProductInText(item.text, finalSelectedProducts) 
+                        : 'General');
       
       if (!statsMap[prodName]) {
         statsMap[prodName] = { name: prodName, positivo: 0, negativo: 0, neutral: 0, total: 0 };
       }
+      
       const sent = item.sentiment?.toLowerCase();
       if (sent === 'positivo') statsMap[prodName].positivo++;
       else if (sent === 'negativo') statsMap[prodName].negativo++;
@@ -180,6 +194,17 @@ const AnalysisView = ({
         pctNeutral: parseFloat(((p.neutral / safeTotal) * 100).toFixed(1)),
       };
     });
+  };
+
+  // 🔥 NUEVA FUNCIÓN AUXILIAR: Detectar productos en el texto
+  const detectProductInText = (text, selectedProducts) => {
+    const textLower = text.toLowerCase();
+    for (const producto of selectedProducts) {
+      if (textLower.includes(producto.nombreProducto.toLowerCase())) {
+        return producto.nombreProducto;
+      }
+    }
+    return 'General';
   };
 
   // Renderiza la lista pequeña en las tarjetas de resumen
@@ -263,29 +288,29 @@ const AnalysisView = ({
     if (!results.isBatch) {
       return (
         <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-           <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-cyan-500/30 mb-8">
-             <div className="flex items-center gap-4 mb-6">
-               <TrendingUp className="w-10 h-10 text-cyan-400" />
-               <h3 className="text-3xl font-black text-white">Análisis Completado</h3>
-             </div>
-             <div className="bg-[#1a0b2e]/50 rounded-2xl p-8 border border-white/10">
-               <div className="flex items-center justify-between mb-4">
-                 <span className="text-cyan-400 font-bold text-lg">TEXTO ANALIZADO</span>
-                 <span className="text-purple-300 font-semibold">Confianza: {(results.score * 100).toFixed(1)}%</span>
-               </div>
-               <p className="text-white text-xl mb-6 italic">"{results.text}"</p>
-               <div className="flex items-center justify-between bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-xl p-6 border border-purple-500/30">
-                 <div>
-                   <p className="text-purple-300 text-sm font-semibold mb-1">SENTIMIENTO</p>
-                   <p className="text-4xl font-black uppercase" style={{color: getSentimentColor(results.sentiment)}}>{results.sentiment}</p>
-                 </div>
-                 <div className="text-right">
-                   <p className="text-purple-300 text-sm font-semibold mb-1">PROBABILIDAD</p>
-                   <p className="text-4xl font-black text-white">{(results.score * 100).toFixed(1)}%</p>
-                 </div>
-               </div>
-             </div>
-           </div>
+            <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-cyan-500/30 mb-8">
+              <div className="flex items-center gap-4 mb-6">
+                <TrendingUp className="w-10 h-10 text-cyan-400" />
+                <h3 className="text-3xl font-black text-white">Análisis Completado</h3>
+              </div>
+              <div className="bg-[#1a0b2e]/50 rounded-2xl p-8 border border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-cyan-400 font-bold text-lg">TEXTO ANALIZADO</span>
+                  <span className="text-purple-300 font-semibold">Confianza: {(results.score * 100).toFixed(1)}%</span>
+                </div>
+                <p className="text-white text-xl mb-6 italic">"{results.text}"</p>
+                <div className="flex items-center justify-between bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-xl p-6 border border-purple-500/30">
+                  <div>
+                    <p className="text-purple-300 text-sm font-semibold mb-1">SENTIMIENTO</p>
+                    <p className="text-4xl font-black uppercase" style={{color: getSentimentColor(results.sentiment)}}>{results.sentiment}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-purple-300 text-sm font-semibold mb-1">PROBABILIDAD</p>
+                    <p className="text-4xl font-black text-white">{(results.score * 100).toFixed(1)}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
         </div>
       );
     }
@@ -352,29 +377,31 @@ const AnalysisView = ({
           </div>
         )}
 
-        <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">
-          <h4 className="text-2xl font-black text-white mb-6">Detalle de Comentarios</h4>
-          <div className="space-y-4">
-            {results.items.map((item, index) => (
-              <div key={index} className="bg-[#1a0b2e]/50 rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg font-bold text-sm">#{index + 1}</span>
-                    <span className="px-3 py-1 rounded-lg font-bold uppercase text-sm" style={{ backgroundColor: `${getSentimentColor(item.sentiment)}20`, color: getSentimentColor(item.sentiment) }}>{item.sentiment}</span>
-                    {/* PRODUCTO ASOCIADO EN RESULTADOS */}
-                    {item.productoAsociado && (
+        {isDemo && (
+          <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">
+            <h4 className="text-2xl font-black text-white mb-6">Detalle de Comentarios</h4>
+            <div className="space-y-4">
+              {results.items.map((item, index) => (
+                <div key={index} className="bg-[#1a0b2e]/50 rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg font-bold text-sm">#{index + 1}</span>
+                      <span className="px-3 py-1 rounded-lg font-bold uppercase text-sm" style={{ backgroundColor: `${getSentimentColor(item.sentiment)}20`, color: getSentimentColor(item.sentiment) }}>{item.sentiment}</span>
+                      {/* PRODUCTO ASOCIADO EN RESULTADOS */}
+                      {item.productoAsociado && (
                         <span className="inline-flex items-center gap-1 text-sm bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg border border-blue-500/30">
-                            <Package className="w-3 h-3"/> {item.productoAsociado}
+                          <Package className="w-3 h-3"/> {item.productoAsociado}
                         </span>
-                    )}
+                      )}
+                    </div>
+                    <div className="text-right"><p className="text-xl font-bold text-white">{(item.score * 100).toFixed(0)}%</p></div>
                   </div>
-                  <div className="text-right"><p className="text-xl font-bold text-white">{(item.score * 100).toFixed(0)}%</p></div>
+                  <p className="text-white italic text-sm">"{item.text}"</p>
                 </div>
-                <p className="text-white italic text-sm">"{item.text}"</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   };
