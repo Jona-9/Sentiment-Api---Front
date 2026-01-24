@@ -1,14 +1,10 @@
 // src/views/AnalysisView.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  Sparkles, Send, TrendingUp, AlertCircle, Home, History, LogOut, 
+  Sparkles, TrendingUp, AlertCircle, Home, History, LogOut, 
   BarChart3, FileText, ArrowLeft, Upload, X, Package, CheckCircle2, 
   Grid3x3, ChevronRight, Plus, Loader2, Check 
 } from 'lucide-react';
-import { 
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, 
-  ResponsiveContainer, Legend, CartesianGrid 
-} from 'recharts';
 
 const AnalysisView = ({
   currentView, setCurrentView, user, isDemo, handleLogout, handleBackToLanding,
@@ -18,7 +14,9 @@ const AnalysisView = ({
 }) => {
   
   // ==================== LÓGICA DEL ASISTENTE (WIZARD) ====================
-  const [step, setStep] = useState(isBatchMode ? 1 : 3);
+  // Si es Batch pero es DEMO, saltamos directo al paso 3 (Input manual)
+  const [step, setStep] = useState((isBatchMode && !isDemo) ? 1 : 3);
+  
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -26,9 +24,9 @@ const AnalysisView = ({
   const [loadingData, setLoadingData] = useState(false);
   const [newProductName, setNewProductName] = useState('');
 
-  // Cargar Categorías
+  // Cargar Categorías (Solo si NO es demo)
   useEffect(() => {
-    if (isBatchMode && step === 1 && user?.token) {
+    if (isBatchMode && step === 1 && user?.token && !isDemo) {
       setLoadingData(true);
       fetch('http://localhost:8080/project/api/v2/categoria', {
         headers: { 'Authorization': `Bearer ${user.token}` }
@@ -38,11 +36,11 @@ const AnalysisView = ({
       .catch(err => console.error(err))
       .finally(() => setLoadingData(false));
     }
-  }, [isBatchMode, step, user]);
+  }, [isBatchMode, step, user, isDemo]);
 
-  // Cargar Productos
+  // Cargar Productos (Solo si NO es demo)
   useEffect(() => {
-    if (isBatchMode && step === 2 && selectedCategory && user?.token) {
+    if (isBatchMode && step === 2 && selectedCategory && user?.token && !isDemo) {
       setLoadingData(true);
       fetch(`http://localhost:8080/project/api/v2/producto/por-categoria?categoriaId=${selectedCategory.categoriaId}`, {
         headers: { 'Authorization': `Bearer ${user.token}` }
@@ -52,7 +50,7 @@ const AnalysisView = ({
       .catch(err => console.error(err))
       .finally(() => setLoadingData(false));
     }
-  }, [isBatchMode, step, selectedCategory, user]);
+  }, [isBatchMode, step, selectedCategory, user, isDemo]);
 
   const handleSelectCategory = (cat) => { setSelectedCategory(cat); setStep(2); };
 
@@ -130,21 +128,15 @@ const AnalysisView = ({
 
   const handleClearFile = () => { setCsvFile(null); setCsvTexts([]); setCsvError(''); setText(''); };
 
-  // ==================== FUNCIONES DE ANÁLISIS POR PRODUCTO (CORREGIDA) ====================
+  // ==================== FUNCIONES DE ANÁLISIS POR PRODUCTO ====================
   
-  // 🔥 CORRECCIÓN: Prioriza 'productosDetectados' del backend para tener los nombres reales
   const calculateProductStats = () => {
-    // 1. Si el backend nos devuelve el desglose ya hecho (lo ideal)
     if (results?.productosDetectados && results.productosDetectados.length > 0) {
       return results.productosDetectados.map(p => {
-        // 🔥 FIX: Múltiples variantes de nombres del backend
         const nombreProducto = p.nombreProducto || p.producto || p.name || 'Desconocido';
-        
-        // 🔥 FIX: Múltiples variantes de contadores del backend
         const positivos = p.conteoPositivos || p.positivosSesion || p.positivos || 0;
         const negativos = p.conteoNegativos || p.negativosSesion || p.negativos || 0;
         const neutrales = p.conteoNeutrales || p.neutralesSesion || p.neutrales || 0;
-        
         const total = positivos + negativos + neutrales;
         const safeTotal = total || 1;
         
@@ -160,13 +152,11 @@ const AnalysisView = ({
       });
     }
 
-    // 2. Fallback: Si no hay desglose del backend, lo calculamos manualmente desde los items
     if (!results?.items) return [];
 
     const statsMap = {};
     
     results.items.forEach(item => {
-      // 🔥 FIX: Múltiples fuentes posibles del nombre del producto
       const prodName = item.productoAsociado || 
                        item.nombreProducto || 
                        item.producto || 
@@ -196,7 +186,6 @@ const AnalysisView = ({
     });
   };
 
-  // 🔥 NUEVA FUNCIÓN AUXILIAR: Detectar productos en el texto
   const detectProductInText = (text, selectedProducts) => {
     const textLower = text.toLowerCase();
     for (const producto of selectedProducts) {
@@ -207,10 +196,8 @@ const AnalysisView = ({
     return 'General';
   };
 
-  // Renderiza la lista pequeña en las tarjetas de resumen
   const renderProductBreakdownList = (sentimentType) => {
     const productStats = calculateProductStats();
-    // Filtramos para mostrar solo los que tienen votos en este sentimiento
     const filtered = productStats.filter(p => p[sentimentType] > 0);
     
     if (filtered.length === 0) return null;
@@ -227,56 +214,6 @@ const AnalysisView = ({
           ))}
         </div>
       </div>
-    );
-  };
-
-  // ==================== GRÁFICOS ====================
-  const renderPieChart = () => {
-    const stats = getStatistics();
-    if (!stats) return null;
-    const data = stats.map(stat => ({ name: stat.name, value: stat.value, color: stat.color }));
-    return (
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie data={data} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
-            {data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-          </Pie>
-          <Tooltip contentStyle={{ backgroundColor: '#1e1b4b', border: '1px solid #6366f1', borderRadius: '8px' }} />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
-    );
-  };
-
-  // 🔥 GRÁFICO CORREGIDO: Porcentajes relativos por producto CON NOMBRES VISIBLES
-  const renderProductPercentageChart = () => {
-    const data = calculateProductStats();
-    if (!data.length) return null;
-
-    return (
-      <ResponsiveContainer width="100%" height={300}>
-        {/* Aumentamos el margen izquierdo (left: 100) y el ancho del YAxis para que quepan los nombres */}
-        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" horizontal={false} />
-          <XAxis type="number" domain={[0, 100]} hide />
-          <YAxis 
-            dataKey="name" 
-            type="category" 
-            stroke="#fff" 
-            width={120} // 🔥 ANCHO AUMENTADO PARA NOMBRES LARGOS
-            tick={{fontSize: 11, fill: '#e9d5ff'}} 
-          />
-          <Tooltip 
-            cursor={{fill: 'rgba(139, 92, 246, 0.1)'}}
-            contentStyle={{ backgroundColor: '#1e1b4b', border: '1px solid #6366f1', borderRadius: '8px' }} 
-            formatter={(value) => `${value}%`}
-          />
-          <Legend />
-          <Bar dataKey="pctPositivo" name="Positivo (%)" stackId="a" fill="#10b981" />
-          <Bar dataKey="pctNeutral" name="Neutral (%)" stackId="a" fill="#f59e0b" />
-          <Bar dataKey="pctNegativo" name="Negativo (%)" stackId="a" fill="#ef4444" radius={[0, 4, 4, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
     );
   };
 
@@ -315,7 +252,7 @@ const AnalysisView = ({
       );
     }
 
-    // Análisis Batch (Múltiple)
+    // Análisis Batch (Múltiple) - ESTADÍSTICAS SOLICITADAS
     const stats = getStatistics();
     
     return (
@@ -332,7 +269,7 @@ const AnalysisView = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* CARD POSITIVOS + LISTA PRODUCTOS */}
+            {/* CARD POSITIVOS */}
             <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-400/30 p-6 rounded-2xl flex flex-col items-center">
                <div className="mb-2 w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400 font-bold text-xl">+</div>
                <p className="text-emerald-300 font-bold mb-1">POSITIVOS</p>
@@ -340,7 +277,7 @@ const AnalysisView = ({
                {renderProductBreakdownList('positivo')}
             </div>
 
-            {/* CARD NEUTRALES + LISTA PRODUCTOS */}
+            {/* CARD NEUTRALES */}
             <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/10 border border-amber-400/30 p-6 rounded-2xl flex flex-col items-center">
                <div className="mb-2 w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center text-amber-400 font-bold text-xl">~</div>
                <p className="text-amber-300 font-bold mb-1">NEUTRALES</p>
@@ -348,7 +285,7 @@ const AnalysisView = ({
                {renderProductBreakdownList('neutral')}
             </div>
 
-            {/* CARD NEGATIVOS + LISTA PRODUCTOS */}
+            {/* CARD NEGATIVOS */}
             <div className="bg-gradient-to-br from-red-500/10 to-red-600/10 border border-red-400/30 p-6 rounded-2xl flex flex-col items-center">
                <div className="mb-2 w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center text-red-400 font-bold text-xl">-</div>
                <p className="text-red-300 font-bold mb-1">NEGATIVOS</p>
@@ -358,50 +295,29 @@ const AnalysisView = ({
           </div>
         </div>
 
-        {!isDemo && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-              <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
-                <BarChart3 className="w-6 h-6 text-purple-400" /> Distribución Global
-              </h4>
-              {renderPieChart()}
-            </div>
-            
-            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-              <h4 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
-                <BarChart3 className="w-6 h-6 text-cyan-400" /> % Sentimiento por Producto
-              </h4>
-              <p className="text-xs text-purple-300 mb-4">Proporción relativa (Suma 100% por producto)</p>
-              {renderProductPercentageChart()}
-            </div>
-          </div>
-        )}
-
-        {isDemo && (
-          <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">
-            <h4 className="text-2xl font-black text-white mb-6">Detalle de Comentarios</h4>
-            <div className="space-y-4">
-              {results.items.map((item, index) => (
-                <div key={index} className="bg-[#1a0b2e]/50 rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg font-bold text-sm">#{index + 1}</span>
-                      <span className="px-3 py-1 rounded-lg font-bold uppercase text-sm" style={{ backgroundColor: `${getSentimentColor(item.sentiment)}20`, color: getSentimentColor(item.sentiment) }}>{item.sentiment}</span>
-                      {/* PRODUCTO ASOCIADO EN RESULTADOS */}
-                      {item.productoAsociado && (
-                        <span className="inline-flex items-center gap-1 text-sm bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg border border-blue-500/30">
-                          <Package className="w-3 h-3"/> {item.productoAsociado}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-right"><p className="text-xl font-bold text-white">{(item.score * 100).toFixed(0)}%</p></div>
+        {/* LISTA DE COMENTARIOS (SIN GRÁFICOS) */}
+        <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">
+          <h4 className="text-2xl font-black text-white mb-6">Detalle de Comentarios</h4>
+          <div className="space-y-4">
+            {results.items.map((item, index) => (
+              <div key={index} className="bg-[#1a0b2e]/50 rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg font-bold text-sm">#{index + 1}</span>
+                    <span className="px-3 py-1 rounded-lg font-bold uppercase text-sm" style={{ backgroundColor: `${getSentimentColor(item.sentiment)}20`, color: getSentimentColor(item.sentiment) }}>{item.sentiment}</span>
+                    {item.productoAsociado && (
+                      <span className="inline-flex items-center gap-1 text-sm bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg border border-blue-500/30">
+                        <Package className="w-3 h-3"/> {item.productoAsociado}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-white italic text-sm">"{item.text}"</p>
+                  <div className="text-right"><p className="text-xl font-bold text-white">{(item.score * 100).toFixed(0)}%</p></div>
                 </div>
-              ))}
-            </div>
+                <p className="text-white italic text-sm">"{item.text}"</p>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
       </div>
     );
   };
@@ -500,7 +416,7 @@ const AnalysisView = ({
 
         {((isBatchMode && step === 3) || !isBatchMode) && (
           <div className="animate-in fade-in slide-in-from-bottom-8 duration-300">
-            {isBatchMode && (
+            {isBatchMode && !isDemo && (
               <div className="mb-8 flex items-center justify-between">
                 <button onClick={() => setStep(2)} className="flex items-center gap-2 text-purple-300 hover:text-white transition-colors"><ArrowLeft className="w-4 h-4"/> Editar</button>
                 <div className="bg-purple-500/20 px-4 py-2 rounded-full border border-purple-500/30 text-sm text-white flex items-center gap-2">
@@ -509,7 +425,6 @@ const AnalysisView = ({
               </div>
             )}
             
-            {/* Solo mostramos la caja de carga si NO hay resultados todavía */}
             {!results && (
               <>
                 <div className="text-center mb-12">
@@ -522,7 +437,9 @@ const AnalysisView = ({
 
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-3xl p-8 border-2 border-purple-500/30 shadow-2xl">
-                    {isBatchMode ? (
+                    
+                    {/* EN MODO DEMO OJO: Solo Textarea */}
+                    {(isBatchMode && !isDemo) ? (
                       <div className="space-y-6">
                         {!csvFile ? (
                           <div className="border-2 border-dashed border-purple-500/30 rounded-2xl p-12 text-center hover:border-purple-500/50 transition-all">
@@ -548,8 +465,15 @@ const AnalysisView = ({
                         {csvError && <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300"><AlertCircle className="w-5 h-5" /> {csvError}</div>}
                       </div>
                     ) : (
-                      <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder="Escribe aquí..." className="w-full h-56 bg-[#1a0b2e]/50 border-2 border-purple-500/30 rounded-xl p-6 text-white placeholder-purple-300/60 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none text-lg" />
+                      <textarea 
+                        value={text} 
+                        onChange={(e) => setText(e.target.value)} 
+                        maxLength={isBatchMode ? 10000 : 500} 
+                        placeholder={isBatchMode ? "Escribe tus comentarios aquí (uno por línea)..." : "Escribe aquí..."} 
+                        className="w-full h-56 bg-[#1a0b2e]/50 border-2 border-purple-500/30 rounded-xl p-6 text-white placeholder-purple-300/60 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none text-lg" 
+                      />
                     )}
+
                     {errorMessage && <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300"><AlertCircle className="w-5 h-5" /> {errorMessage}</div>}
                     <button onClick={() => analyzeSentiment()} disabled={(!text.trim() && !csvFile) || analyzing} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-3 transition-all text-lg shadow-xl mt-6">{analyzing ? 'Analizando...' : 'Analizar ahora'}</button>
                   </div>
