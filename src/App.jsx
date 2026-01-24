@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Landing from './views/Landing';
@@ -6,17 +7,16 @@ import DashboardView from './views/DashboardView';
 import AnalysisView from './views/AnalysisView';
 import HistoryView from './views/HistoryView';
 import DemoSelectionView from './views/DemoSelectionView';
+import CategorySelectionView from './views/CategorySelectionView';
+import ProductSelectionView from './views/ProductSelectionView';
 import { sentimentService } from './services/sentimentService';
 
-// 🔥 CONSTANTE PARA LOCALSTORAGE
 const STORAGE_KEY = 'sentimentapi_user';
 
-// Componente principal con la lógica
 const AppContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // 🔥 INICIALIZAR USER DESDE LOCALSTORAGE
   const [user, setUser] = useState(() => {
     try {
       const savedUser = localStorage.getItem(STORAGE_KEY);
@@ -35,9 +35,10 @@ const AppContent = () => {
   const [results, setResults] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   
-  const [historyData, setHistoryData] = useState([]);
+  // Estados para Categorías y Productos
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedProducts, setSelectedProducts] = useState([]);
 
-  // 🔥 GUARDAR USER EN LOCALSTORAGE CADA VEZ QUE CAMBIE
   useEffect(() => {
     if (user && !isDemo) {
       try {
@@ -50,8 +51,8 @@ const AppContent = () => {
     }
   }, [user, isDemo]);
 
-  // Limpiar estado cuando cambia la ruta
   useEffect(() => {
+    // Limpiar resultados al cambiar de ruta
     setText('');
     setResults(null);
     setErrorMessage('');
@@ -75,31 +76,39 @@ const AppContent = () => {
            return;
         }
         
-        // ✅ VERIFICAR TOKEN ANTES DE ANALIZAR
-        if (user && !isDemo && user.token) {
-          console.log('🔑 Analizando con token:', user.token);
-          const result = await sentimentService.analyzeAndSave(comentarios, user.token);
+        // Lógica para análisis con productos seleccionados
+        if (user && !isDemo && user.token && selectedProducts.length > 0) {
+          console.log('🔑 Analizando con productos:', selectedProducts.map(p => p.nombreProducto));
+          
+          const productosIds = selectedProducts.map(p => p.productoId);
+          
+          const result = await sentimentService.analyzeWithMultipleProducts(
+            comentarios, 
+            user.token,
+            productosIds
+          );
           
           setResults({
             isBatch: true,
             totalAnalyzed: result.total,
             sessionSaved: true,
             sessionId: result.sessionId,
-            items: result.comentarios, 
+            items: result.comentarios || [],
             stats: {
               avgScore: result.avgScore,
               positivos: result.positivos,
               negativos: result.negativos,
               neutrales: result.neutrales,
-            }
+            },
+            productosDetectados: result.productosDetectados || []
           });
         } else {
-          // MODO DEMO
+          // Análisis batch simple (sin productos específicos)
           const result = await sentimentService.analyzeBatch(text);
           setResults(result);
         }
       } else {
-        // Análisis Simple
+        // Análisis simple (un solo texto)
         const result = await sentimentService.analyzeSingle(text);
         setResults(result);
       }
@@ -137,6 +146,7 @@ const AppContent = () => {
       ];
     }
     
+    // Fallback si no hay stats precalculados
     const items = results.items || [];
     if (items.length === 0) return null;
     
@@ -189,6 +199,8 @@ const AppContent = () => {
     setText('');
     setResults(null);
     setErrorMessage('');
+    setSelectedCategory(null);
+    setSelectedProducts([]);
   };
 
   const handleDemoStart = () => {
@@ -205,10 +217,23 @@ const AppContent = () => {
     setText('');
     setResults(null);
     setErrorMessage('');
+    setSelectedCategory(null);
+    setSelectedProducts([]);
   };
 
   const setCurrentView = (view) => {
     navigate(`/${view}`);
+  };
+
+  // Handlers para el flujo de selección
+  const handleCategorySelected = (category) => {
+    setSelectedCategory(category);
+    navigate('/product-selection');
+  };
+
+  const handleProductsSelected = (products) => {
+    setSelectedProducts(products);
+    navigate('/analysis-batch');
   };
 
   const analysisProps = {
@@ -225,7 +250,8 @@ const AppContent = () => {
     setResults,
     getStatistics,
     getSentimentColor,
-    errorMessage
+    errorMessage,
+    selectedProducts
   };
 
   return (
@@ -295,6 +321,41 @@ const AppContent = () => {
         } 
       />
 
+      {/* Rutas del flujo de selección de productos */}
+      <Route 
+        path="/category-selection" 
+        element={
+          user && !isDemo ? (
+            <CategorySelectionView
+              user={user}
+              token={user.token}
+              onCategorySelected={handleCategorySelected}
+              onBack={() => navigate('/dashboard')}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } 
+      />
+
+      <Route 
+        path="/product-selection" 
+        element={
+          user && !isDemo && selectedCategory ? (
+            <ProductSelectionView
+              user={user}
+              token={user.token}
+              categoria={selectedCategory}
+              onProductsSelected={handleProductsSelected}
+              onBack={() => navigate('/category-selection')}
+            />
+          ) : (
+            <Navigate to="/category-selection" replace />
+          )
+        } 
+      />
+
+      {/* Rutas de Análisis */}
       <Route 
         path="/analysis-simple" 
         element={
@@ -359,20 +420,19 @@ const AppContent = () => {
         path="/history" 
         element={
           user && !isDemo ? (
-            <HistoryView
-              currentView="history"
-              setCurrentView={setCurrentView}
+            <HistoryView 
               user={user}
+              token={user.token}
+              setCurrentView={setCurrentView} 
               handleLogout={handleLogout}
-              historyData={historyData}
-              getSentimentColor={getSentimentColor}
             />
           ) : (
             <Navigate to="/" replace />
           )
         } 
       />
-
+      
+      {/* Ruta Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

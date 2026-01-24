@@ -1,11 +1,14 @@
 // src/services/sentimentService.js
 import { API_ENDPOINTS } from '../config/api';
 
+// URL Base de respaldo por si no está en tu archivo de configuración aún
+const API_BASE_URL = 'http://localhost:8080/project/api/v2';
+
 export const sentimentService = {
   /**
    * Analiza un texto simple
    * @param {string} text - Texto a analizar (5-2000 caracteres)
-   * @returns {Promise<Object>} { prevision: "Positivo"|"Negativo"|"Neutral", probabilidad: 0.85 }
+   * @returns {Promise<Object>} { sentiment: "positivo"|"negativo"|"neutral", score: 0.85 }
    */
   async analyzeSingle(text) {
     try {
@@ -50,7 +53,7 @@ export const sentimentService = {
   },
 
   /**
-   * Analiza múltiples textos
+   * Analiza múltiples textos (Sin guardar en BD / Modo Demo o Batch Simple)
    * @param {string} text - Textos separados por \n (5-20000 caracteres)
    * @returns {Promise<Object>} { isBatch: true, totalAnalyzed: 3, items: [...] }
    */
@@ -103,11 +106,80 @@ export const sentimentService = {
   },
 
   /**
-   * Analiza comentarios y guarda la sesión en la base de datos (requiere autenticación)
-   * ✅ MODIFICADO: Ahora retorna los comentarios individuales con su confianza
+   * Analiza una lista de textos considerando productos específicos
+   * ✅ ESTA ES LA FUNCIÓN QUE FALTABA PARA TU FLUJO DE CATEGORÍAS/PRODUCTOS
+   * @param {Array<string>} textos - Array de strings con los comentarios
+   * @param {string} token - JWT del usuario
+   * @param {Array<number>} productoIds - IDs de los productos seleccionados
+   */
+  async analyzeWithMultipleProducts(textos, token, productoIds) {
+    try {
+      // Usamos una URL directa si no está en API_ENDPOINTS, ajusta según tu backend
+      const url = `${API_BASE_URL}/analisis/analizar-lista-productos`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          comentarios: textos,
+          productoIds: productoIds
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) throw new Error('Sesión expirada');
+        if (response.status === 502) throw new Error('Servidor de IA no disponible');
+        throw new Error(errorData.message || 'Error en el análisis multiproducto');
+      }
+
+      const data = await response.json();
+
+      // Normalizador local para asegurar consistencia
+      const normalizeSentiment = (sent) => {
+        const s = sent?.toLowerCase().trim();
+        if (s === 'positive') return 'positivo';
+        if (s === 'negative') return 'negativo';
+        if (s === 'neutro') return 'neutral';
+        return s || 'neutral';
+      };
+
+      // Mapear respuesta del backend a la estructura que espera el Frontend
+      return {
+        total: data.totalComentarios || textos.length,
+        sessionId: data.analisisId,
+        
+        // Mapeamos los resultados individuales
+        comentarios: (data.resultados || []).map(r => ({
+          text: r.texto,
+          sentiment: normalizeSentiment(r.sentimiento),
+          score: r.probabilidad || 0,
+          productoAsociado: r.nombreProducto || null // Dato extra útil
+        })),
+
+        // Estadísticas generales
+        avgScore: data.promedioScore || 0,
+        positivos: data.conteoPositivos || 0,
+        negativos: data.conteoNegativos || 0,
+        neutrales: data.conteoNeutrales || 0,
+        
+        // Desglose por productos (para las gráficas avanzadas)
+        productosDetectados: data.productosDetectados || []
+      };
+
+    } catch (error) {
+      console.error('Error en analyzeWithMultipleProducts:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Analiza comentarios y guarda la sesión (Método Legacy/Simple sin productos específicos)
    * @param {Array<string>} comentarios - Lista de textos a analizar
    * @param {string} token - JWT token del usuario autenticado
-   * @returns {Promise<Object>} Sesión guardada con estadísticas + comentarios individuales
    */
   async analyzeAndSave(comentarios, token) {
     try {
@@ -132,11 +204,10 @@ export const sentimentService = {
 
       const data = await response.json();
       
-      // ✅ MAPEAR COMENTARIOS INDIVIDUALES CON SU CONFIANZA
       const comentariosConDetalles = data.comentarios?.map(comentario => ({
         text: comentario.texto,
         sentiment: comentario.sentimiento.toLowerCase(),
-        score: comentario.probabilidad, // ✅ Confianza individual del backend
+        score: comentario.probabilidad,
       })) || [];
       
       return {
@@ -147,7 +218,7 @@ export const sentimentService = {
         positivos: data.positivos,
         negativos: data.negativos,
         neutrales: data.neutrales,
-        comentarios: comentariosConDetalles, // ✅ NUEVO: Comentarios con confianza individual
+        comentarios: comentariosConDetalles,
       };
     } catch (error) {
       console.error('Error en analyzeAndSave:', error);
@@ -158,7 +229,6 @@ export const sentimentService = {
   /**
    * Obtiene el historial de sesiones del usuario
    * @param {string} token - JWT token del usuario autenticado
-   * @returns {Promise<Array>} Lista de sesiones
    */
   async getHistory(token) {
     try {
