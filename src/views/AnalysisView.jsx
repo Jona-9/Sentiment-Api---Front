@@ -5,6 +5,7 @@ import {
   BarChart3, FileText, ArrowLeft, Upload, X, Package, CheckCircle2, 
   Grid3x3, ChevronRight, Plus, Loader2, Check, Clock 
 } from 'lucide-react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const AnalysisView = ({
   currentView, setCurrentView, user, isDemo, handleLogout, handleBackToLanding,
@@ -183,6 +184,46 @@ const AnalysisView = ({
     });
   };
 
+  // ==================== GRÁFICO DE PASTEL POR PRODUCTO ====================
+  const getPieDataByProduct = () => {
+    const productStats = calculateProductStats();
+    const result = {};
+    
+    productStats.forEach(prod => {
+      result[prod.name] = [
+        { name: 'Negativo', value: prod.negativo, color: '#ef4444' },
+        { name: 'Neutral', value: prod.neutral, color: '#f59e0b' },
+        { name: 'Positivo', value: prod.positivo, color: '#10b981' }
+      ];
+    });
+    
+    return result;
+  };
+
+  // ==================== DISTRIBUCIÓN GENERAL DE PUNTUACIONES ====================
+  const getGeneralScoreDistribution = () => {
+    if (!results?.items) return [];
+
+    const distribution = [
+      { range: '0.0-0.2', count: 0 },
+      { range: '0.2-0.4', count: 0 },
+      { range: '0.4-0.6', count: 0 },
+      { range: '0.6-0.8', count: 0 },
+      { range: '0.8-1.0', count: 0 },
+    ];
+
+    results.items.forEach(item => {
+      const score = item.score || 0;
+      if (score <= 0.2) distribution[0].count++;
+      else if (score <= 0.4) distribution[1].count++;
+      else if (score <= 0.6) distribution[2].count++;
+      else if (score <= 0.8) distribution[3].count++;
+      else distribution[4].count++;
+    });
+
+    return distribution;
+  };
+
   const detectProductInText = (text, selectedProducts) => {
     const textLower = text.toLowerCase();
     for (const producto of selectedProducts) {
@@ -248,6 +289,9 @@ const AnalysisView = ({
     }
 
     const stats = getStatistics();
+    const pieDataByProduct = getPieDataByProduct();
+    const generalScoreDistribution = getGeneralScoreDistribution();
+    
     return (
       <div className="mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-cyan-500/30">
@@ -284,6 +328,86 @@ const AnalysisView = ({
             </div>
           </div>
         </div>
+
+        {/* GRÁFICOS: DISTRIBUCIÓN DE SENTIMIENTOS (PASTEL POR PRODUCTO) Y DISTRIBUCIÓN DE PUNTUACIONES (BARRAS GENERAL) */}
+        {isBatchMode && !isDemo && finalSelectedProducts.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* GRÁFICOS DE PASTEL POR PRODUCTO */}
+            {Object.entries(pieDataByProduct).map(([productName, pieData]) => (
+              <div key={productName} className="bg-[#2d1b4e]/60 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/30">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-5 h-5 text-purple-400" />
+                  <h4 className="text-xl font-bold text-white">Distribución de Sentimientos</h4>
+                </div>
+                <p className="text-purple-300 text-sm mb-2">Producto: <span className="font-bold text-white">{productName}</span></p>
+                
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                      label={(entry) => `${entry.name} ${((entry.value / pieData.reduce((a,b) => a + b.value, 0)) * 100).toFixed(1)}%`}
+                      labelLine={false}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* DISTRIBUCIÓN GENERAL DE PUNTUACIONES (BARRAS) */}
+        {isBatchMode && generalScoreDistribution.length > 0 && (
+          <div className="bg-[#2d1b4e]/60 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/30">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="w-5 h-5 text-cyan-400" />
+              <h4 className="text-xl font-bold text-white">Distribución de Puntuaciones</h4>
+            </div>
+            
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={generalScoreDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                <XAxis 
+                  dataKey="range" 
+                  stroke="#9ca3af" 
+                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  stroke="#9ca3af" 
+                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#1e1b4b', 
+                    border: '1px solid #6366f1', 
+                    borderRadius: '8px',
+                    color: '#fff'
+                  }}
+                />
+                <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                  {generalScoreDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill="#a78bfa" />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500/30">
           <h4 className="text-2xl font-black text-white mb-6">Detalle de Comentarios</h4>
