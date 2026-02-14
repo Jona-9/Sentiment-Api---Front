@@ -107,17 +107,13 @@ export const sentimentService = {
 
   /**
    * Analiza una lista de textos considerando productos específicos
-   * ✅ ESTA ES LA FUNCIÓN QUE FALTABA PARA TU FLUJO DE CATEGORÍAS/PRODUCTOS
    * @param {Array<string>} textos - Array de strings con los comentarios
    * @param {string} token - JWT del usuario
    * @param {Array<number>} productoIds - IDs de los productos seleccionados
    */
   async analyzeWithMultipleProducts(textos, token, productoIds) {
     try {
-      // Usamos una URL directa si no está en API_ENDPOINTS, ajusta según tu backend
-      const url = `${API_BASE_URL}/analisis/analizar-lista-productos`;
-
-      const response = await fetch(url, {
+      const response = await fetch(API_ENDPOINTS.ANALYZE_MULTI_PRODUCTS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +121,7 @@ export const sentimentService = {
         },
         body: JSON.stringify({
           comentarios: textos,
-          productoIds: productoIds
+          productosIds: productoIds
         })
       });
 
@@ -138,7 +134,6 @@ export const sentimentService = {
 
       const data = await response.json();
 
-      // Normalizador local para asegurar consistencia
       const normalizeSentiment = (sent) => {
         const s = sent?.toLowerCase().trim();
         if (s === 'positive') return 'positivo';
@@ -147,31 +142,83 @@ export const sentimentService = {
         return s || 'neutral';
       };
 
-      // Mapear respuesta del backend a la estructura que espera el Frontend
       return {
-        total: data.totalComentarios || textos.length,
-        sessionId: data.analisisId,
-        
-        // Mapeamos los resultados individuales
-        comentarios: (data.resultados || []).map(r => ({
+        total: data.total || textos.length,
+        sessionId: data.sessionId,
+        comentarios: (data.comentarios || []).map(r => ({
           text: r.texto,
           sentiment: normalizeSentiment(r.sentimiento),
           score: r.probabilidad || 0,
-          productoAsociado: r.nombreProducto || null // Dato extra útil
+          productoAsociado: r.nombreProducto || null
         })),
-
-        // Estadísticas generales
-        avgScore: data.promedioScore || 0,
-        positivos: data.conteoPositivos || 0,
-        negativos: data.conteoNegativos || 0,
-        neutrales: data.conteoNeutrales || 0,
-        
-        // Desglose por productos (para las gráficas avanzadas)
+        avgScore: data.avgScore || 0,
+        positivos: data.positivos || 0,
+        negativos: data.negativos || 0,
+        neutrales: data.neutrales || 0,
         productosDetectados: data.productosDetectados || []
       };
 
     } catch (error) {
       console.error('Error en analyzeWithMultipleProducts:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * ✨ NUEVO: Analiza batch CSV con auto-creación de categorías y productos
+   * @param {Array<{texto: string, producto?: string, categoria?: string}>} entradas
+   * @param {string} token - JWT del usuario
+   */
+  async analyzeCsvBatch(entradas, token) {
+    try {
+      const response = await fetch(API_ENDPOINTS.ANALYZE_CSV_BATCH, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ entradas })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) throw new Error('Sesión expirada');
+        if (response.status === 502) throw new Error('Servidor de IA no disponible');
+        throw new Error(errorData.message || 'Error en el análisis batch CSV');
+      }
+
+      const data = await response.json();
+
+      const normalizeSentiment = (sent) => {
+        const s = sent?.toLowerCase().trim();
+        if (s === 'positive') return 'positivo';
+        if (s === 'negative') return 'negativo';
+        if (s === 'neutro') return 'neutral';
+        return s || 'neutral';
+      };
+
+      return {
+        isBatch: true,
+        totalAnalyzed: data.total || entradas.length,
+        sessionSaved: true,
+        sessionId: data.sessionId,
+        items: (data.comentarios || []).map(r => ({
+          text: r.texto,
+          sentiment: normalizeSentiment(r.sentimiento),
+          score: r.probabilidad || 0,
+          productoAsociado: r.productoAsociado || null,
+        })),
+        stats: {
+          avgScore: data.avgScore || 0,
+          positivos: data.positivos || 0,
+          negativos: data.negativos || 0,
+          neutrales: data.neutrales || 0,
+        },
+        productosDetectados: data.productosDetectados || []
+      };
+
+    } catch (error) {
+      console.error('Error en analyzeCsvBatch:', error);
       throw error;
     }
   },

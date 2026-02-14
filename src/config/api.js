@@ -12,8 +12,15 @@ export const API_ENDPOINTS = {
   
   // Sesiones
   ANALYZE_AND_SAVE: `${API_BASE_URL}/sesion/analizar`,
+  ANALYZE_CSV_BATCH: `${API_BASE_URL}/sesion/analizar-csv-batch`,
+  ANALYZE_MULTI_PRODUCTS: `${API_BASE_URL}/sesion/analizar-con-lista-productos`,
   GET_SESSIONS: `${API_BASE_URL}/sesion`,
   GET_HISTORY: `${API_BASE_URL}/sesion/historial`,
+
+  // Categorías y Productos
+  CATEGORIAS: `${API_BASE_URL}/categoria`,
+  PRODUCTOS: `${API_BASE_URL}/producto`,
+  PRODUCTOS_POR_CATEGORIA: `${API_BASE_URL}/producto/por-categoria`,
 };
 
 export default API_BASE_URL;

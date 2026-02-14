@@ -20,11 +20,16 @@ export const authService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Error al registrar usuario');
+        const msg = errorData.message || errorData.error || 'Error al registrar usuario';
+        throw new Error(msg);
       }
+
+      // El backend puede devolver body vacío (200 sin JSON) o JSON
+      const data = await response.json().catch(() => null);
 
       return {
         success: true,
+        message: data?.message || 'Registro exitoso',
         user: {
           nombre: userData.nombre,
           apellido: userData.apellido,

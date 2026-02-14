@@ -34,6 +34,7 @@ const AppContent = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [pendingHistoricalSession, setPendingHistoricalSession] = useState(null);
   
   // Estados para Categorías y Productos
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -52,14 +53,50 @@ const AppContent = () => {
   }, [user, isDemo]);
 
   useEffect(() => {
-    // Limpiar resultados al cambiar de ruta
+    // Si hay una sesión histórica pendiente, cargarla en vez de limpiar
+    if (pendingHistoricalSession) {
+      setResults(pendingHistoricalSession);
+      setPendingHistoricalSession(null);
+      setText('');
+      setErrorMessage('');
+      return;
+    }
     setText('');
     setResults(null);
     setErrorMessage('');
   }, [location.pathname]);
 
-  const analyzeSentiment = async () => {
-    if (!text.trim()) return;
+  // Cargar una sesión histórica como resultados y navegar a la vista de análisis
+  const loadSessionFromHistory = (session) => {
+    const items = (session.comentarios || []).map(c => ({
+      text: c.texto,
+      sentiment: c.sentimiento,
+      score: c.probabilidad,
+      productoAsociado: c.productoAsociado || null
+    }));
+
+    const restoredResults = {
+      isBatch: true,
+      totalAnalyzed: session.total || items.length,
+      sessionSaved: true,
+      sessionId: session.sessionId,
+      isHistorical: true,
+      items,
+      stats: {
+        avgScore: session.avgScore,
+        positivos: session.positivos || 0,
+        negativos: session.negativos || 0,
+        neutrales: session.neutrales || 0,
+      },
+      productosDetectados: session.productosDetectados || []
+    };
+
+    setPendingHistoricalSession(restoredResults);
+    navigate('/analysis-batch');
+  };
+
+  const analyzeSentiment = async (csvEntradas = null) => {
+    if (!text.trim() && !csvEntradas) return;
     
     setAnalyzing(true);
     setErrorMessage('');
@@ -68,18 +105,17 @@ const AppContent = () => {
     
     try {
       if (isBatchMode) {
-        const comentarios = text.split('\n').filter(t => t.trim());
-
-        if (comentarios.length === 0) {
-           setErrorMessage('No hay textos válidos para analizar.');
-           setAnalyzing(false);
-           return;
-        }
-        
-        // Lógica para análisis con productos seleccionados
-        if (user && !isDemo && user.token && selectedProducts.length > 0) {
+        // ✨ Nuevo flujo: si hay entradas CSV con producto/categoría, usar el endpoint CSV batch
+        if (csvEntradas && csvEntradas.length > 0 && user && !isDemo && user.token) {
+          console.log('📊 Analizando CSV batch con', csvEntradas.length, 'entradas');
+          
+          const result = await sentimentService.analyzeCsvBatch(csvEntradas, user.token);
+          setResults(result);
+        } else if (user && !isDemo && user.token && selectedProducts.length > 0) {
+          // Flujo legacy con productos pre-seleccionados
           console.log('🔑 Analizando con productos:', selectedProducts.map(p => p.nombreProducto));
           
+          const comentarios = text.split('\n').filter(t => t.trim());
           const productosIds = selectedProducts.map(p => p.productoId);
           
           const result = await sentimentService.analyzeWithMultipleProducts(
@@ -104,8 +140,41 @@ const AppContent = () => {
           });
         } else {
           // Análisis batch simple (sin productos específicos)
-          const result = await sentimentService.analyzeBatch(text);
-          setResults(result);
+          const comentarios = text.split('\n').filter(t => t.trim());
+          if (comentarios.length === 0) {
+            setErrorMessage('No hay textos válidos para analizar.');
+            setAnalyzing(false);
+            return;
+          }
+
+          if (user && !isDemo && user.token) {
+            // Usuario logueado → guardar sesión en historial
+            console.log('📝 Analizando texto manual con', comentarios.length, 'comentarios (guardando sesión)');
+            const result = await sentimentService.analyzeAndSave(comentarios, user.token);
+            setResults({
+              isBatch: true,
+              totalAnalyzed: result.total || comentarios.length,
+              sessionSaved: true,
+              sessionId: result.sessionId,
+              items: (result.comentarios || []).map(c => ({
+                text: c.text || c.texto,
+                sentiment: c.sentiment || c.sentimiento,
+                score: c.score || c.probabilidad,
+                productoAsociado: c.productoAsociado || null,
+              })),
+              stats: {
+                avgScore: result.avgScore || 0,
+                positivos: result.positivos || 0,
+                negativos: result.negativos || 0,
+                neutrales: result.neutrales || 0,
+              },
+              productosDetectados: result.productosDetectados || []
+            });
+          } else {
+            // Modo demo o sin login → análisis sin guardar
+            const result = await sentimentService.analyzeBatch(text);
+            setResults(result);
+          }
         }
       } else {
         // Análisis simple (un solo texto)
@@ -425,6 +494,7 @@ const AppContent = () => {
               token={user.token}
               setCurrentView={setCurrentView} 
               handleLogout={handleLogout}
+              onLoadSession={loadSessionFromHistory}
             />
           ) : (
             <Navigate to="/" replace />

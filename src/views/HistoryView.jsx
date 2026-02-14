@@ -7,7 +7,12 @@ import {
   Calendar, 
   TrendingUp,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  Minus
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -16,13 +21,17 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer
+  ResponsiveContainer,
+  Legend,
+  AreaChart,
+  Area
 } from 'recharts';
 import { sentimentService } from '../services/sentimentService';
 
-const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
+const HistoryView = ({ user, token, setCurrentView, handleLogout, onLoadSession }) => {
   const [loading, setLoading] = useState(true);
   const [historyData, setHistoryData] = useState([]);
+  const [rawSessions, setRawSessions] = useState([]);
   const [stats, setStats] = useState({
     totalSesiones: 0,
     totalTextos: 0,
@@ -53,6 +62,10 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
   };
 
   const processData = (data) => {
+    // Guardar sesiones crudas para "Ver análisis" — invertir para orden cronológico (más antigua primero)
+    const chronological = [...data].reverse();
+    setRawSessions(chronological);
+
     // 1. Calcular Estadísticas Globales
     const totalSesiones = data.length;
     const totalTextos = data.reduce((acc, curr) => acc + (curr.total || 0), 0);
@@ -76,23 +89,32 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
       ultimaCarga: lastDate
     });
 
-    // 2. Preparar Datos para el Gráfico (Mapeo)
-    const chartData = data.map((session, index) => ({
-      name: `Análisis #${index + 1}`,
-      puntuacion: (session.avgScore * 100).toFixed(0),
-      fecha: new Date(session.date || session.fecha).toLocaleDateString()
-    }));
+    // 2. Preparar Datos para el Gráfico — % de sentimiento por sesión
+    const chartData = chronological.map((session, index) => {
+      const total = session.total || 1;
+      const pos = session.positivos || 0;
+      const neg = session.negativos || 0;
+      const neu = session.neutrales || 0;
+      return {
+        name: `#${index + 1}`,
+        Positivo: parseFloat(((pos / total) * 100).toFixed(1)),
+        Neutral: parseFloat(((neu / total) * 100).toFixed(1)),
+        Negativo: parseFloat(((neg / total) * 100).toFixed(1)),
+        totalComentarios: total,
+        fecha: new Date(session.date || session.fecha).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      };
+    });
 
     setHistoryData(chartData);
   };
 
-  // Datos simulados para que se vea el gráfico si no hay backend conectado aún (VISUAL)
+  // Datos simulados para vista previa
   const mockChartData = [
-    { name: 'Análisis #1', puntuacion: 72 },
-    { name: 'Análisis #2', puntuacion: 68 },
-    { name: 'Análisis #3', puntuacion: 81 },
-    { name: 'Análisis #4', puntuacion: 75 },
-    { name: 'Análisis #5', puntuacion: 89 },
+    { name: '#1', Positivo: 60, Neutral: 25, Negativo: 15, totalComentarios: 20, fecha: '10/02/2026' },
+    { name: '#2', Positivo: 45, Neutral: 30, Negativo: 25, totalComentarios: 30, fecha: '11/02/2026' },
+    { name: '#3', Positivo: 70, Neutral: 15, Negativo: 15, totalComentarios: 25, fecha: '12/02/2026' },
+    { name: '#4', Positivo: 55, Neutral: 20, Negativo: 25, totalComentarios: 18, fecha: '13/02/2026' },
+    { name: '#5', Positivo: 75, Neutral: 15, Negativo: 10, totalComentarios: 22, fecha: '14/02/2026' },
   ];
 
   const displayData = historyData.length > 0 ? historyData : mockChartData;
@@ -133,7 +155,7 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
               </div>
               <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider">Sesiones Totales</span>
             </div>
-            <p className="text-4xl font-black text-white mb-1">{stats.totalSesiones > 0 ? stats.totalSesiones : 5}</p>
+            <p className="text-4xl font-black text-white mb-1">{stats.totalSesiones}</p>
             <p className="text-sm text-purple-400">Registros en BD</p>
           </div>
 
@@ -145,7 +167,7 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
               </div>
               <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">Total Análisis</span>
             </div>
-            <p className="text-4xl font-black text-white mb-1">{stats.totalTextos > 0 ? stats.totalTextos : 405}</p>
+            <p className="text-4xl font-black text-white mb-1">{stats.totalTextos}</p>
             <p className="text-sm text-indigo-400">Textos procesados</p>
           </div>
 
@@ -157,7 +179,7 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
               </div>
               <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">Efectividad Positiva</span>
             </div>
-            <p className="text-4xl font-black text-white mb-1">{stats.efectividad > 0 ? stats.efectividad : 69.1}%</p>
+            <p className="text-4xl font-black text-white mb-1">{stats.efectividad}%</p>
             <p className="text-sm text-cyan-400">Satisfacción global</p>
           </div>
 
@@ -174,38 +196,48 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
           </div>
         </div>
 
-        {/* Gráfico Principal */}
+        {/* Gráfico Principal — Evolución de Sentimiento */}
         <div className="bg-gradient-to-br from-purple-900/20 to-[#1a0b2e] backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-          <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
+          <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-cyan-400" />
-            Evolución de Puntuaciones (Promedio por Tanda)
+            Evolución del Sentimiento por Sesión
           </h3>
+          <p className="text-purple-400 text-sm mb-6">Porcentaje de comentarios positivos, neutrales y negativos en cada análisis</p>
           
           <div className="h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={displayData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <AreaChart data={displayData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
                 <defs>
-                  <linearGradient id="colorGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#22d3ee" />
-                    <stop offset="100%" stopColor="#8b5cf6" />
+                  <linearGradient id="gradPositivo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="gradNeutral" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="gradNegativo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
                 <XAxis 
                   dataKey="name" 
                   stroke="#9ca3af" 
-                  tick={{ fill: '#6b7280', fontSize: 12 }} 
+                  tick={{ fill: '#9ca3af', fontSize: 12 }} 
                   axisLine={false}
                   tickLine={false}
                   dy={10}
                 />
                 <YAxis 
                   stroke="#9ca3af" 
-                  tick={{ fill: '#6b7280', fontSize: 12 }} 
+                  tick={{ fill: '#9ca3af', fontSize: 12 }} 
                   axisLine={false}
                   tickLine={false}
                   dx={-10}
                   domain={[0, 100]}
+                  tickFormatter={(v) => `${v}%`}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -214,18 +246,47 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
                     borderRadius: '12px',
                     color: '#fff' 
                   }}
-                  itemStyle={{ color: '#22d3ee' }}
+                  formatter={(value, name) => [`${value}%`, name]}
+                  labelFormatter={(label, payload) => {
+                    const item = payload?.[0]?.payload;
+                    return item ? `Sesión ${label} — ${item.fecha} (${item.totalComentarios} comentarios)` : label;
+                  }}
                 />
-                <Line 
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="circle"
+                />
+                <Area 
                   type="monotone" 
-                  dataKey="puntuacion" 
-                  stroke="url(#colorGradient)" 
-                  strokeWidth={4}
-                  dot={{ r: 6, fill: '#1a0b2e', stroke: '#22d3ee', strokeWidth: 3 }}
-                  activeDot={{ r: 8, fill: '#22d3ee' }}
+                  dataKey="Positivo" 
+                  stroke="#10b981" 
+                  strokeWidth={3}
+                  fill="url(#gradPositivo)"
+                  dot={{ r: 5, fill: '#1a0b2e', stroke: '#10b981', strokeWidth: 2 }}
+                  activeDot={{ r: 7, fill: '#10b981' }}
                   animationDuration={2000}
                 />
-              </LineChart>
+                <Area 
+                  type="monotone" 
+                  dataKey="Neutral" 
+                  stroke="#f59e0b" 
+                  strokeWidth={3}
+                  fill="url(#gradNeutral)"
+                  dot={{ r: 5, fill: '#1a0b2e', stroke: '#f59e0b', strokeWidth: 2 }}
+                  activeDot={{ r: 7, fill: '#f59e0b' }}
+                  animationDuration={2000}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="Negativo" 
+                  stroke="#ef4444" 
+                  strokeWidth={3}
+                  fill="url(#gradNegativo)"
+                  dot={{ r: 5, fill: '#1a0b2e', stroke: '#ef4444', strokeWidth: 2 }}
+                  activeDot={{ r: 7, fill: '#ef4444' }}
+                  animationDuration={2000}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -241,6 +302,90 @@ const HistoryView = ({ user, token, setCurrentView, handleLogout }) => {
           <div className="flex items-center gap-2 text-red-400 justify-center py-4 bg-red-400/10 rounded-xl border border-red-400/20">
             <AlertCircle className="w-5 h-5" />
             <p>{error}</p>
+          </div>
+        )}
+
+        {/* Tabla de Sesiones */}
+        {!loading && rawSessions.length > 0 && (
+          <div className="bg-gradient-to-br from-purple-900/20 to-[#1a0b2e] backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+              <Database className="w-5 h-5 text-purple-400" />
+              Sesiones de Análisis
+            </h3>
+            <p className="text-purple-400 text-sm mb-6">Haz clic en "Ver análisis" para reabrir los resultados completos de cualquier sesión</p>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left text-purple-300 text-xs font-bold uppercase tracking-wider py-3 px-4">#</th>
+                    <th className="text-left text-purple-300 text-xs font-bold uppercase tracking-wider py-3 px-4">Fecha</th>
+                    <th className="text-center text-purple-300 text-xs font-bold uppercase tracking-wider py-3 px-4">Comentarios</th>
+                    <th className="text-center text-emerald-300 text-xs font-bold uppercase tracking-wider py-3 px-4">Positivos</th>
+                    <th className="text-center text-amber-300 text-xs font-bold uppercase tracking-wider py-3 px-4">Neutrales</th>
+                    <th className="text-center text-red-300 text-xs font-bold uppercase tracking-wider py-3 px-4">Negativos</th>
+                    <th className="text-center text-purple-300 text-xs font-bold uppercase tracking-wider py-3 px-4">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {rawSessions.map((session, index) => {
+                    const total = session.total || 0;
+                    const safeTotal = total === 0 ? 1 : total;
+                    const pctPos = ((session.positivos || 0) / safeTotal * 100).toFixed(0);
+                    const pctNeu = ((session.neutrales || 0) / safeTotal * 100).toFixed(0);
+                    const pctNeg = ((session.negativos || 0) / safeTotal * 100).toFixed(0);
+                    const fecha = new Date(session.date || session.fecha).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    
+                    return (
+                      <tr key={session.sessionId || index} className="hover:bg-white/5 transition-colors">
+                        <td className="py-4 px-4">
+                          <span className="text-white font-bold">#{index + 1}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="text-white text-sm">{fecha}</span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                            <span className="text-white font-bold">{total}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <ThumbsUp className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-emerald-400 font-bold">{session.positivos || 0}</span>
+                            <span className="text-emerald-400/60 text-xs">({pctPos}%)</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Minus className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="text-amber-400 font-bold">{session.neutrales || 0}</span>
+                            <span className="text-amber-400/60 text-xs">({pctNeu}%)</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <ThumbsDown className="w-3.5 h-3.5 text-red-400" />
+                            <span className="text-red-400 font-bold">{session.negativos || 0}</span>
+                            <span className="text-red-400/60 text-xs">({pctNeg}%)</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <button 
+                            onClick={() => onLoadSession && onLoadSession(session)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Ver análisis
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
