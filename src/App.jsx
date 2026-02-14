@@ -10,6 +10,7 @@ import DemoSelectionView from './views/DemoSelectionView';
 import CategorySelectionView from './views/CategorySelectionView';
 import ProductSelectionView from './views/ProductSelectionView';
 import { sentimentService } from './services/sentimentService';
+import Footer from './components/Footer';
 
 const STORAGE_KEY = 'sentimentapi_user';
 
@@ -324,6 +325,8 @@ const AppContent = () => {
   };
 
   return (
+    <div className="flex flex-col min-h-screen">
+    <div className="flex-1">
     <Routes>
       <Route 
         path="/" 
@@ -505,6 +508,9 @@ const AppContent = () => {
       {/* Ruta Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </div>
+    <Footer />
+    </div>
   );
 };
 
